@@ -57,6 +57,12 @@ fr = fator_r(folha_anual, preco_nf * 12)
 an = anexo(fr)
 aliq = aliquota(preco_nf * 12, an)
 das = preco_nf * aliq
+das_detalhado = detalhar_das(das, an)
+
+st.subheader("🧾 DAS – Detalhamento")
+
+for tributo, valor in das_detalhado.items():
+    st.write(f"{tributo}:", brl(valor))
 
 # --- TABELA DETALHADA ---
 st.subheader("📊 Custos detalhados por cargo")
