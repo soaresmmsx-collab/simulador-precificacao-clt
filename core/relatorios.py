@@ -6,14 +6,11 @@ from reportlab.lib.units import cm
 from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.lib.utils import ImageReader
 
-# ======================================================
-# CONFIGURAÇÕES
-# ======================================================
+# ================= CONFIGURAÇÕES =================
 
 MARGEM_ESQ = 2.5 * cm
 MARGEM_DIR = 2.5 * cm
 MARGEM_INF = 4.0 * cm
-
 LARGURA_TEXTO = A4[0] - (MARGEM_ESQ + MARGEM_DIR)
 
 FONT_TEXTO = "Helvetica"
@@ -26,22 +23,11 @@ SIZE_TITULO_GRANDE = 16
 LEADING = 16
 ESPACO_PARAGRAFO = 6
 
-
-# ======================================================
-# UTILIDADES
-# ======================================================
-
-def _brl(valor):
-    try:
-        return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-    except Exception:
-        return str(valor)
-
+# ================= UTIL =================
 
 def _footer(c, pagina):
     c.setFont("Helvetica-Oblique", 8)
     c.drawRightString(A4[0] - MARGEM_DIR, 1.5 * cm, f"Página {pagina}")
-
 
 def _nova_pagina(c, pagina, titulo, subtitulo):
     _footer(c, pagina)
@@ -50,10 +36,7 @@ def _nova_pagina(c, pagina, titulo, subtitulo):
     y = _cabecalho(c, titulo, subtitulo)
     return y, pagina
 
-
-# ======================================================
-# CABEÇALHO (SEGURO)
-# ======================================================
+# ================= CABEÇALHO =================
 
 def _cabecalho(c, titulo, subtitulo):
     largura, altura = A4
@@ -74,25 +57,19 @@ def _cabecalho(c, titulo, subtitulo):
 
     y = altura - 2.5 * cm
 
-    # Título
-    c.setFont(FONT_TITULO, SIZE_TITULO_GRANDE)
-    c.drawRightString(A4[0] - MARGEM_DIR, y, titulo)
-    y -= 18
+    # Título principal (direita)
+    y, _ = _draw_texto_quebrado(
+        c, titulo, y,
+        FONT_TITULO, SIZE_TITULO_GRANDE,
+        alinhamento="direita"
+    )
 
-    # Subtítulo quebrado manualmente (direita)
-    c.setFont(FONT_TEXTO, 11)
-    palavras = subtitulo.split()
-    linha = ""
-    for palavra in palavras:
-        teste = linha + palavra + " "
-        if stringWidth(teste, FONT_TEXTO, 11) <= (A4[0] - MARGEM_DIR - MARGEM_ESQ - 4.5 * cm):
-            linha = teste
-        else:
-            c.drawRightString(A4[0] - MARGEM_DIR, y, linha.strip())
-            y -= 14
-            linha = palavra + " "
-    if linha:
-        c.drawRightString(A4[0] - MARGEM_DIR, y, linha.strip())
+    # Subtítulo (direita, quebrável)
+    y, _ = _draw_texto_quebrado(
+        c, subtitulo, y - 4,
+        FONT_TEXTO, 11,
+        alinhamento="direita"
+    )
 
     c.line(
         MARGEM_ESQ,
@@ -103,20 +80,44 @@ def _cabecalho(c, titulo, subtitulo):
 
     return y - 30
 
+# ================= QUEBRA CONTROLADA (TÍTULOS) =================
 
-# ======================================================
-# TEXTO JUSTIFICADO (ÚNICO PARA CORPO)
-# ======================================================
+def _draw_texto_quebrado(c, texto, y, font, size, alinhamento="esquerda"):
+    c.setFont(font, size)
+    palavras = texto.split()
+    linha = ""
+
+    for palavra in palavras:
+        teste = linha + palavra + " "
+        if stringWidth(teste, font, size) <= LARGURA_TEXTO:
+            linha = teste
+        else:
+            if alinhamento == "direita":
+                c.drawRightString(A4[0] - MARGEM_DIR, y, linha.strip())
+            else:
+                c.drawString(MARGEM_ESQ, y, linha.strip())
+            y -= LEADING
+            linha = palavra + " "
+
+    if linha:
+        if alinhamento == "direita":
+            c.drawRightString(A4[0] - MARGEM_DIR, y, linha.strip())
+        else:
+            c.drawString(MARGEM_ESQ, y, linha.strip())
+        y -= LEADING
+
+    return y, None
+
+# ================= TEXTO JUSTIFICADO (CORPO) =================
 
 def _draw_linha_justificada(c, palavras, y):
     largura_palavras = sum(stringWidth(p, FONT_TEXTO, SIZE_TEXTO) for p in palavras)
     espaco = (LARGURA_TEXTO - largura_palavras) / (len(palavras) - 1)
-
     x = MARGEM_ESQ
+
     for p in palavras:
         c.drawString(x, y, p)
         x += stringWidth(p, FONT_TEXTO, SIZE_TEXTO) + espaco
-
 
 def _draw_texto_justificado(c, texto, y, pagina, titulo, subtitulo):
     c.setFont(FONT_TEXTO, SIZE_TEXTO)
@@ -128,16 +129,16 @@ def _draw_texto_justificado(c, texto, y, pagina, titulo, subtitulo):
             y -= ESPACO_PARAGRAFO
             continue
 
-        # Títulos vindos da IA (**Texto**)
+        # Subtítulos vindos da IA (**Texto**)
         if paragrafo.startswith("**") and paragrafo.endswith("**"):
             t = paragrafo.replace("**", "").strip()
             if y < MARGEM_INF:
                 y, pagina = _nova_pagina(c, pagina, titulo, subtitulo)
 
-            c.setFont(FONT_TITULO, SIZE_TITULO)
-            c.drawString(MARGEM_ESQ, y, t)
-            y -= LEADING
-            c.setFont(FONT_TEXTO, SIZE_TEXTO)
+            y, _ = _draw_texto_quebrado(
+                c, t, y,
+                FONT_TITULO, SIZE_TITULO
+            )
             continue
 
         palavras = paragrafo.split()
@@ -155,7 +156,7 @@ def _draw_texto_justificado(c, texto, y, pagina, titulo, subtitulo):
                 _draw_linha_justificada(c, linha, y)
                 y -= LEADING
                 linha = [palavra]
-                largura = stringWidth(palavra + " ", FONT_TEXTO, SIZE_TEXTO)
+                largura = w
 
         if linha:
             if y < MARGEM_INF:
@@ -167,10 +168,7 @@ def _draw_texto_justificado(c, texto, y, pagina, titulo, subtitulo):
 
     return y, pagina
 
-
-# ======================================================
-# PROPOSTA COMERCIAL
-# ======================================================
+# ================= PROPOSTA COMERCIAL =================
 
 def gerar_proposta_comercial_pdf(
     caminho,
@@ -189,22 +187,16 @@ def gerar_proposta_comercial_pdf(
 
     y = _cabecalho(c, "PROPOSTA COMERCIAL", f"{cliente} | Validade: {validade}")
 
-    # TÍTULO DA PROPOSTA (QUEBRA SIMPLES)
-    c.setFont(FONT_TITULO, SIZE_TITULO)
-    palavras = titulo_proposta.split()
-    linha = ""
-    for palavra in palavras:
-        teste = linha + palavra + " "
-        if stringWidth(teste, FONT_TITULO, SIZE_TITULO) <= LARGURA_TEXTO:
-            linha = teste
-        else:
-            c.drawString(MARGEM_ESQ, y, linha.strip())
-            y -= LEADING
-            linha = palavra + " "
-    if linha:
-        c.drawString(MARGEM_ESQ, y, linha.strip())
-        y -= LEADING
+    # TÍTULO PRINCIPAL DA PROPOSTA (corrigido)
+    y, _ = _draw_texto_quebrado(
+        c,
+        titulo_proposta,
+        y,
+        FONT_TITULO,
+        SIZE_TITULO
+    )
 
+    # CORPO
     y, pagina = _draw_texto_justificado(
         c,
         resumo_executivo,
@@ -215,8 +207,13 @@ def gerar_proposta_comercial_pdf(
     )
 
     y -= 10
-    c.setFont(FONT_TITULO, 18)
-    c.drawString(MARGEM_ESQ, y, valor_nf)
+    y, _ = _draw_texto_quebrado(
+        c,
+        valor_nf,
+        y,
+        FONT_TITULO,
+        18
+    )
 
     _footer(c, pagina)
 
@@ -237,6 +234,7 @@ def gerar_proposta_comercial_pdf(
             cliente
         )
 
+    # TÍTULO INTERMEDIÁRIO DA PÁGINA 2 (ANTES CORTAVA)
     y, pagina = _draw_texto_justificado(
         c,
         texto_comercial,
@@ -266,10 +264,7 @@ def gerar_proposta_comercial_pdf(
     _footer(c, pagina)
     c.save()
 
-
-# ======================================================
-# PROPOSTA TÉCNICA
-# ======================================================
+# ================= PROPOSTA TÉCNICA =================
 
 def gerar_pdf_tecnico(
     caminho_pdf,
@@ -288,15 +283,19 @@ def gerar_pdf_tecnico(
         "Memória de Cálculo – Custos, Encargos e Tributos"
     )
 
-    c.setFont(FONT_TITULO, SIZE_TITULO)
-    c.drawString(MARGEM_ESQ, y, "Custos por Cargo")
-    y -= LEADING
+    y, _ = _draw_texto_quebrado(
+        c,
+        "Custos por Cargo",
+        y,
+        FONT_TITULO,
+        SIZE_TITULO
+    )
 
     for cargo in cargos:
         linha = (
             f"{cargo['Cargo']} | "
             f"Qtd: {cargo['Quantidade']} | "
-            f"Salário Base: {_brl(cargo['Salário Base'])}"
+            f"Salário Base: {cargo['Salário']}"
         )
         y, pagina = _draw_texto_justificado(
             c,
@@ -307,13 +306,12 @@ def gerar_pdf_tecnico(
             "Memória de Cálculo – Custos, Encargos e Tributos"
         )
 
-    y, pagina = _draw_texto_justificado(
+    y, _ = _draw_texto_quebrado(
         c,
-        f"Lucro Mensal: {_brl(lucro)}",
+        f"Lucro Mensal: {lucro}",
         y,
-        pagina,
-        "PROPOSTA TÉCNICA",
-        "Memória de Cálculo – Custos, Encargos e Tributos"
+        FONT_TITULO,
+        SIZE_TITULO
     )
 
     _footer(c, pagina)
