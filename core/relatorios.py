@@ -18,7 +18,17 @@ COLE_AQUI_SUA_LOGO_BASE64
 
 def _criar_logo_temp():
     if not LOGO_BASE64.strip():
-        return None
+        raise ValueError("LOGO_BASE64 está vazia")
+
+    try:
+        logo_bytes = base64.b64decode(LOGO_BASE64)
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+        tmp.write(logo_bytes)
+        tmp.close()
+        return tmp.name
+    except Exception as e:
+        raise ValueError(f"Erro ao decodificar LOGO_BASE64: {e}")
+
 
     try:
         logo_bytes = base64.b64decode(LOGO_BASE64)
