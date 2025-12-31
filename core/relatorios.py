@@ -22,8 +22,8 @@ FONT_TITULO = "Helvetica-Bold"
 SIZE_TEXTO = 11
 SIZE_TITULO = 14
 
-LEADING = 18            # ~1,5x
-ESPACO_PARAGRAFO = 6    # espaço controlado entre parágrafos
+LEADING = 18
+ESPACO_PARAGRAFO = 6
 
 # ======================================================
 # UTILIDADES
@@ -44,6 +44,7 @@ def _cabecalho(c, titulo, subtitulo):
     base_dir = os.path.dirname(os.path.abspath(__file__))
     logo_path = os.path.join(base_dir, "..", "assets", "logo.png")
 
+    # LOGO
     if os.path.exists(logo_path):
         logo = ImageReader(logo_path)
         logo_w = 3.5 * cm
@@ -62,12 +63,37 @@ def _cabecalho(c, titulo, subtitulo):
             mask="auto"
         )
 
+    # TÍTULO (direita)
     c.setFont("Helvetica-Bold", 16)
     c.drawRightString(largura - MARGEM_DIR, altura - 2.2 * cm, titulo)
 
+    # SUBTÍTULO (direita, COM QUEBRA AUTOMÁTICA)
     c.setFont("Helvetica", 11)
-    c.drawRightString(largura - MARGEM_DIR, altura - 2.9 * cm, subtitulo)
+    x_sub = MARGEM_ESQ + 4.5 * cm
+    y_sub = altura - 2.9 * cm
+    largura_sub = largura - MARGEM_DIR - x_sub
 
+    text = c.beginText()
+    text.setTextOrigin(x_sub, y_sub)
+    text.setLeading(14)
+
+    palavras = subtitulo.split()
+    linha = ""
+
+    for palavra in palavras:
+        teste = linha + palavra + " "
+        if stringWidth(teste, "Helvetica", 11) <= largura_sub:
+            linha = teste
+        else:
+            text.textLine(linha.rstrip())
+            linha = palavra + " "
+
+    if linha:
+        text.textLine(linha.rstrip())
+
+    c.drawText(text)
+
+    # LINHA SEPARADORA
     c.line(
         MARGEM_ESQ + 4.5 * cm,
         altura - 3.7 * cm,
@@ -89,13 +115,12 @@ def _nova_pagina(c, pagina, titulo, subtitulo):
 # ======================================================
 
 def _draw_linha_justificada(c, palavras, y, font, size):
-    if len(palavras) == 1:
+    if len(palavras) <= 1:
         c.drawString(MARGEM_ESQ, y, palavras[0])
         return
 
     largura_palavras = sum(stringWidth(p, font, size) for p in palavras)
-    espaco_total = LARGURA_TEXTO - largura_palavras
-    espaco = espaco_total / (len(palavras) - 1)
+    espaco = (LARGURA_TEXTO - largura_palavras) / (len(palavras) - 1)
 
     x = MARGEM_ESQ
     for p in palavras:
@@ -104,7 +129,7 @@ def _draw_linha_justificada(c, palavras, y, font, size):
 
 def _draw_texto_justificado(
     c, texto, y, pagina, titulo, subtitulo,
-    font=FONT_TEXTO, size=SIZE_TEXTO, leading=LEADING
+    font=FONT_TEXTO, size=SIZE_TEXTO
 ):
     c.setFont(font, size)
 
@@ -114,14 +139,13 @@ def _draw_texto_justificado(
             y -= ESPACO_PARAGRAFO
             continue
 
-        # Títulos vindos como **Titulo**
         if paragrafo.startswith("**") and paragrafo.endswith("**"):
-            titulo_txt = paragrafo.replace("**", "").strip()
+            t = paragrafo.replace("**", "").strip()
             if y < MARGEM_INF:
                 y, pagina = _nova_pagina(c, pagina, titulo, subtitulo)
             c.setFont(FONT_TITULO, SIZE_TITULO)
-            c.drawString(MARGEM_ESQ, y, titulo_txt)
-            y -= leading
+            c.drawString(MARGEM_ESQ, y, t)
+            y -= LEADING
             c.setFont(font, size)
             continue
 
@@ -139,7 +163,7 @@ def _draw_texto_justificado(
                     y, pagina = _nova_pagina(c, pagina, titulo, subtitulo)
                     c.setFont(font, size)
                 _draw_linha_justificada(c, linha, y, font, size)
-                y -= leading
+                y -= LEADING
                 linha = [palavra]
                 largura_linha = stringWidth(palavra + " ", font, size)
 
@@ -148,7 +172,7 @@ def _draw_texto_justificado(
                 y, pagina = _nova_pagina(c, pagina, titulo, subtitulo)
                 c.setFont(font, size)
             c.drawString(MARGEM_ESQ, y, " ".join(linha))
-            y -= leading
+            y -= LEADING
 
         y -= ESPACO_PARAGRAFO
 
@@ -173,10 +197,8 @@ def gerar_proposta_comercial_pdf(
     c = canvas.Canvas(caminho, pagesize=A4)
     pagina = 1
 
-    # CAPA
     y = _cabecalho(c, "PROPOSTA COMERCIAL", f"{cliente} | Validade: {validade}")
 
-    # 🔹 TÍTULO LONGO – AGORA COM QUEBRA AUTOMÁTICA
     c.setFont(FONT_TITULO, SIZE_TITULO)
     y, pagina = _draw_texto_justificado(
         c,
@@ -204,7 +226,6 @@ def gerar_proposta_comercial_pdf(
 
     _footer(c, pagina)
 
-    # CORPO
     y, pagina = _nova_pagina(
         c, pagina,
         "PROPOSTA COMERCIAL",
@@ -305,4 +326,3 @@ def gerar_pdf_tecnico(
 
     _footer(c, pagina)
     c.save()
-
