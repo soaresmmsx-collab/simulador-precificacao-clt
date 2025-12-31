@@ -120,7 +120,7 @@ def _desenhar_cabecalho_padrao(c, titulo_principal, subtitulo):
     )
 
     # Retorna Y inicial do conteúdo
-    return altura - 4.5 * cm
+    return altura - 5.5 * cm
 
 
 # ======================================================
