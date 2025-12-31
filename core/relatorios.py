@@ -173,6 +173,9 @@ def gerar_proposta_comercial_pdf(
 
     y = _cabecalho(c, "PROPOSTA COMERCIAL", f"{cliente} | Validade: {validade}")
 
+    # >>> RESPIRO ENTRE CABEÇALHO E CONTEÚDO <<<
+    y -= 20  # ajuste fino do espaçamento vertical
+
     y, pagina = _draw_texto(
         c, f"**{titulo_proposta}**", y, pagina,
         "PROPOSTA COMERCIAL", cliente
