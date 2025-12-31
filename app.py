@@ -40,6 +40,17 @@ margem = st.slider(
 
 lista_cargos = cargos()
 
+st.subheader("📄 Dados da Proposta")
+
+cliente = st.text_input("Cliente")
+titulo_proposta = st.text_input("Título da proposta", "Proposta de prestação de serviços")
+descricao_proposta = st.text_area(
+    "Descrição da proposta (escopo resumido)",
+    height=150
+)
+validade = st.text_input("Validade da proposta", "30 dias")
+
+
 # ======================================================
 # CÁLCULOS
 # ======================================================
