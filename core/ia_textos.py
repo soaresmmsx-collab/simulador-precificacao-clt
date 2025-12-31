@@ -1,89 +1,47 @@
-import os
+from core.ia_textos import (
+    gerar_resumo_executivo,
+    gerar_texto_comercial
+)
 
-CONTEXTO_FARMACEUTICO = """
-Você redige propostas comerciais para empresas do setor farmacêutico.
-Essas empresas operam sob forte regulação, auditorias frequentes,
-exigência rigorosa de conformidade trabalhista, fiscal e tributária,
-e ambientes críticos que demandam alta confiabilidade operacional.
-"""
+# ------------------------------------
+# IA AVANÇADA
+# ------------------------------------
+st.subheader("🤖 Conteúdo Gerado por IA")
 
-def _openai_disponivel():
-    return os.getenv("OPENAI_API_KEY") is not None
+tom_ia = st.selectbox(
+    "Tom da narrativa",
+    ["Executivo", "Comercial"]
+)
 
+contexto = st.text_area(
+    "Contexto da proposta (base para IA)",
+    height=120
+)
 
-def gerar_resumo_executivo(contexto, tom):
-    if not _openai_disponivel():
-        return (
-            "Resumo executivo não gerado automaticamente. "
-            "Motivo: API Key da OpenAI não configurada."
-        )
+if "resumo_exec" not in st.session_state:
+    st.session_state["resumo_exec"] = ""
 
-    try:
-        from openai import OpenAI
-        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+if "texto_comercial" not in st.session_state:
+    st.session_state["texto_comercial"] = ""
 
-        prompt = f"""
-        {CONTEXTO_FARMACEUTICO}
+col1, col2 = st.columns(2)
 
-        Gere um RESUMO EXECUTIVO curto (5 a 7 linhas) para uma proposta comercial.
-        Tom: {tom}.
-        Linguagem estratégica, clara e objetiva.
-        Não mencionar valores detalhados nem impostos.
+with col1:
+    if st.button("Gerar resumo executivo"):
+        st.session_state["resumo_exec"] = gerar_resumo_executivo(contexto, tom_ia)
 
-        Contexto da proposta:
-        {contexto}
-        """
+with col2:
+    if st.button("Gerar texto comercial"):
+        st.session_state["texto_comercial"] = gerar_texto_comercial(contexto, tom_ia)
 
-        resp = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "Você é um consultor executivo sênior."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.3
-        )
+resumo_exec = st.text_area(
+    "Resumo executivo (editável)",
+    st.session_state["resumo_exec"],
+    height=120
+)
 
-        return resp.choices[0].message.content.strip()
-
-    except Exception as e:
-        return f"Erro ao gerar resumo executivo: {str(e)}"
-
-
-def gerar_texto_comercial(contexto, tom):
-    if not _openai_disponivel():
-        return (
-            "Texto comercial não gerado automaticamente. "
-            "Motivo: API Key da OpenAI não configurada."
-        )
-
-    try:
-        from openai import OpenAI
-        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-        prompt = f"""
-        {CONTEXTO_FARMACEUTICO}
-
-        Gere um TEXTO COMERCIAL para proposta de prestação de serviços.
-        Tom: {tom}.
-        Público: áreas de compras, jurídico e gestão.
-        Enfatizar previsibilidade financeira, mitigação de riscos,
-        conformidade regulatória e eficiência operacional.
-        Não detalhar cálculos.
-
-        Contexto da proposta:
-        {contexto}
-        """
-
-        resp = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "Você é um especialista em propostas B2B."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.4
-        )
-
-        return resp.choices[0].message.content.strip()
-
-    except Exception as e:
-        return f"Erro ao gerar texto comercial: {str(e)}"
+texto_comercial = st.text_area(
+    "Texto comercial (editável)",
+    st.session_state["texto_comercial"],
+    height=200
+)
