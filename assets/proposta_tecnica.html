@@ -1,4 +1,20 @@
 <h2>Proposta Técnica</h2>
+
+<h3>Custos por cargo</h3>
+<ul>
 {% for c in cargos %}
-<p>{{ c.nome }} – Custo: {{ c.custo }}</p>
+  <li>
+    {{ c["Cargo"] }} – Custo unitário: {{ c["Custo Unitário"] }}
+  </li>
 {% endfor %}
+</ul>
+
+<h3>Encargos CLT Consolidados</h3>
+<ul>
+{% for k, v in clt.items() %}
+  <li>{{ k }}: {{ v }}</li>
+{% endfor %}
+</ul>
+
+<p><strong>DAS mensal:</strong> {{ das }}</p>
+<p><strong>Lucro mensal:</strong> {{ lucro }}</p>
