@@ -1,65 +1,45 @@
 import streamlit as st
 import pandas as pd
 
-# =====================================================
-# AUTH (NÃO ALTERADO)
-# =====================================================
+# ================= AUTH =================
 from auth.auth import login
 
-# =====================================================
-# CORE – CLT
-# =====================================================
+# ================= CORE =================
 from core.clt import calcular_clt
-
-# =====================================================
-# CORE – SIMPLES NACIONAL
-# =====================================================
-from core.simples import (
-    fator_r,
-    anexo,
-    aliquota,
-    detalhar_das
-)
-
-# =====================================================
-# CORE – PRECIFICAÇÃO
-# =====================================================
+from core.simples import fator_r, anexo, aliquota, detalhar_das
 from core.precificacao import precificar
 
-# =====================================================
-# IA
-# =====================================================
-from core.ia_textos import (
-    gerar_resumo_executivo,
-    gerar_texto_comercial
-)
+# ================= IA =================
+from core.ia_textos import gerar_resumo_executivo, gerar_texto_comercial
 
-# =====================================================
-# RELATÓRIOS
-# =====================================================
-from core.relatorios import (
-    gerar_proposta_comercial_pdf,
-    gerar_pdf_tecnico
-)
+# ================= RELATÓRIOS =================
+from core.relatorios import gerar_proposta_comercial_pdf, gerar_pdf_tecnico
 
-# =====================================================
-# CONFIG STREAMLIT
-# =====================================================
+# ================= CONFIG =================
 st.set_page_config(
     page_title="Simulador de Precificação CLT",
     layout="wide"
 )
 
-# =====================================================
-# LOGIN (CORRETO PARA SEU auth.py)
-# =====================================================
+# ================= LOGIN =================
 login()
 if not st.session_state.get("logged", False):
     st.stop()
 
 st.title("📊 Simulador de Precificação CLT")
 
-TOM_PADRAO = "executivo, comercial, voltado ao setor farmacêutico"
+# =====================================================
+# UTIL – PREVIEW (REGRA A)
+# =====================================================
+def render_texto_preview(texto: str):
+    for linha in texto.split("\n"):
+        linha = linha.strip()
+        if not linha:
+            st.markdown("")
+        elif linha.startswith("**") and linha.endswith("**"):
+            st.markdown(f"### {linha.replace('**', '').strip()}")
+        else:
+            st.markdown(linha)
 
 # =====================================================
 # 1️⃣ IDENTIFICAÇÃO
@@ -70,7 +50,7 @@ c1, c2, c3 = st.columns(3)
 cliente = c1.text_input("Cliente")
 titulo_proposta = c2.text_input(
     "Título da proposta",
-    "Proposta de Prestação de Serviços"
+    "Proposta Comercial: Fornecimento de Mão de Obra Especializada"
 )
 validade = c3.text_input("Validade", "30 dias")
 
@@ -96,10 +76,7 @@ with st.expander("Adicionar cargo"):
         })
 
 if st.session_state.cargos:
-    st.dataframe(
-        pd.DataFrame(st.session_state.cargos),
-        use_container_width=True
-    )
+    st.dataframe(pd.DataFrame(st.session_state.cargos), use_container_width=True)
 else:
     st.info("Nenhum cargo adicionado.")
 
@@ -121,7 +98,7 @@ margem_pct = p2.number_input(
 )
 
 # =====================================================
-# 4️⃣ IA – CONTEÚDO DA PROPOSTA
+# 4️⃣ IA
 # =====================================================
 st.header("4️⃣ Conteúdo da Proposta (IA)")
 
@@ -131,40 +108,35 @@ contexto = st.text_area(
     placeholder="Descreva o escopo, cliente e objetivos..."
 )
 
+TOM_PADRAO = "executivo, comercial, voltado ao setor farmacêutico"
+
 x1, x2 = st.columns(2)
 if x1.button("Gerar Resumo Executivo"):
-    st.session_state.resumo_exec = gerar_resumo_executivo(
-        contexto,
-        TOM_PADRAO
-    )
-
+    st.session_state.resumo_exec = gerar_resumo_executivo(contexto, TOM_PADRAO)
 
 if x2.button("Gerar Texto Comercial"):
-    st.session_state.texto_comercial = gerar_texto_comercial(
-        contexto,
-        TOM_PADRAO
-    )
+    st.session_state.texto_comercial = gerar_texto_comercial(contexto, TOM_PADRAO)
 
-
-# =====================================================
-# RESUMO EXECUTIVO
-# =====================================================
 resumo_exec = st.text_area(
     "Resumo Executivo (editável)",
     st.session_state.get("resumo_exec", ""),
-    height=180
+    height=200
 )
-st.markdown(resumo_exec)
 
-# =====================================================
-# TEXTO COMERCIAL
-# =====================================================
 texto_comercial = st.text_area(
     "Texto Comercial (editável)",
     st.session_state.get("texto_comercial", ""),
     height=260
 )
-st.markdown(texto_comercial)
+
+# =====================================================
+# PREVIEW (REGRA A)
+# =====================================================
+st.subheader("📌 Pré-visualização – Resumo Executivo")
+render_texto_preview(resumo_exec)
+
+st.subheader("📌 Pré-visualização – Texto Comercial")
+render_texto_preview(texto_comercial)
 
 # =====================================================
 # 5️⃣ CÁLCULOS
@@ -194,7 +166,6 @@ if st.button("Calcular Precificação"):
 
     # ---------- SIMPLES ----------
     margem = margem_pct / 100
-
     preco_base, _ = precificar(folha_total, margem)
 
     fr = fator_r(folha_total, preco_base)
@@ -204,7 +175,6 @@ if st.button("Calcular Precificação"):
     valor_das = preco_base * aliq
     das_detalhado = detalhar_das(valor_das, an)
 
-    # ---------- CUSTO TOTAL FINAL ----------
     custo_total = folha_total + valor_das
     preco_final, lucro_final = precificar(custo_total, margem)
 
