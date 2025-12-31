@@ -3,3 +3,4 @@ pandas
 jinja2
 reportlab
 openpyxl
+openai>=1.0.0
