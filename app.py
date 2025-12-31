@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-from datetime import date
 
 # ===============================
 # AUTH (INALTERADO)
@@ -23,9 +22,9 @@ from core.simples import (
 )
 
 # ===============================
-# CORE – PRECIFICAÇÃO
+# CORE – PRECIFICAÇÃO (REAL)
 # ===============================
-from core.precificacao import calcular_precificacao
+from core.precificacao import precificar
 
 # ===============================
 # IA
@@ -101,8 +100,16 @@ else:
 st.header("3️⃣ Parâmetros Financeiros")
 
 p1, p2 = st.columns(2)
-vale_refeicao = p1.number_input("Vale refeição por colaborador (R$)", value=600.0, step=50.0)
-margem = p2.number_input("Margem de lucro (%)", value=20.0, step=1.0)
+vale_refeicao = p1.number_input(
+    "Vale refeição por colaborador (R$)",
+    value=600.0,
+    step=50.0
+)
+margem_pct = p2.number_input(
+    "Margem de lucro (%)",
+    value=20.0,
+    step=1.0
+)
 
 # =====================================================
 # 4️⃣ IA
@@ -162,49 +169,49 @@ if st.button("Calcular Precificação"):
         for k, v in detalhes.items():
             clt_detalhado[k] = clt_detalhado.get(k, 0) + (v * cargo["Quantidade"])
 
-    resultado_clt = {
-        "folha_total": folha_total,
-        "detalhado": clt_detalhado
-    }
-
     # ---------- SIMPLES ----------
-    # Receita simulada = custo + margem
-    receita_base = folha_total * (1 + margem / 100)
+    margem = margem_pct / 100
 
-    fr = fator_r(folha_total, receita_base)
+    # preço sem DAS ainda (base)
+    preco_base, lucro_base = precificar(folha_total, margem)
+
+    fr = fator_r(folha_total, preco_base)
     an = anexo(fr)
-    aliq = aliquota(receita_base * 12, an)
-    valor_das = receita_base * aliq
+    aliq = aliquota(preco_base * 12, an)
+
+    valor_das = preco_base * aliq
     das_detalhado = detalhar_das(valor_das, an)
 
-    resultado_das = {
-        "fator_r": fr,
-        "anexo": an,
-        "aliquota": aliq,
-        "valor": valor_das,
-        "detalhado": das_detalhado
-    }
-
-    # ---------- PRECIFICAÇÃO ----------
-    resultado_precificacao = calcular_precificacao(
-        resultado_clt,
-        resultado_das,
-        margem
-    )
+    # ---------- CUSTO TOTAL FINAL ----------
+    custo_total = folha_total + valor_das
+    preco_final, lucro_final = precificar(custo_total, margem)
 
     st.session_state.resultado = {
-        "clt": resultado_clt,
-        "das": resultado_das,
-        "precificacao": resultado_precificacao
+        "clt": {
+            "folha_total": folha_total,
+            "detalhado": clt_detalhado
+        },
+        "das": {
+            "fator_r": fr,
+            "anexo": an,
+            "aliquota": aliq,
+            "valor": valor_das,
+            "detalhado": das_detalhado
+        },
+        "precificacao": {
+            "custo_total": custo_total,
+            "valor_nf": preco_final,
+            "lucro": lucro_final
+        }
     }
 
 # =====================================================
 # 6️⃣ OUTPUT
 # =====================================================
 if "resultado" in st.session_state:
-    st.subheader("Resumo Financeiro")
-
     r = st.session_state.resultado
+
+    st.subheader("Resumo Financeiro")
 
     a, b, c = st.columns(3)
     a.metric("Custo Total Mensal", f"R$ {r['precificacao']['custo_total']:,.2f}")
@@ -225,7 +232,7 @@ if "resultado" in st.session_state:
             texto_comercial,
             validade,
             f"R$ {r['precificacao']['valor_nf']:,.2f}",
-            f"{margem}%",
+            f"{margem_pct}%",
             st.session_state.cargos
         )
         with open("proposta_comercial.pdf", "rb") as f:
