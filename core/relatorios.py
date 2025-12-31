@@ -31,20 +31,20 @@ def gerar_pdf_tecnico(
     caminho_pdf,
     cargos,
     clt_detalhado,
-    das,
-    lucro
+    das_total,
+    lucro,
+    das_detalhado
 ):
     c = canvas.Canvas(caminho_pdf, pagesize=A4)
     largura, altura = A4
-
     y = altura - 40
 
     # TÍTULO
     c.setFont("Helvetica-Bold", 14)
-    c.drawString(40, y, "PROPOSTA TÉCNICA – DETALHAMENTO DE CUSTOS")
+    c.drawString(40, y, "PROPOSTA TÉCNICA – MEMÓRIA DE CÁLCULO")
     y -= 30
 
-    # CARGOS
+    # 1. CARGOS
     c.setFont("Helvetica-Bold", 11)
     c.drawString(40, y, "1. Custos por Cargo")
     y -= 20
@@ -55,6 +55,7 @@ def gerar_pdf_tecnico(
             40,
             y,
             f"{cargo['Cargo']} | Qtd: {cargo['Quantidade']} | "
+            f"Salário: {cargo['Salário Base']} | "
             f"Custo Unitário: {cargo['Custo Unitário']}"
         )
         y -= 14
@@ -64,7 +65,7 @@ def gerar_pdf_tecnico(
             y = altura - 40
             c.setFont("Helvetica", 9)
 
-    # CLT DETALHADO
+    # 2. CLT
     y -= 20
     c.setFont("Helvetica-Bold", 11)
     c.drawString(40, y, "2. Encargos CLT Consolidados")
@@ -75,27 +76,34 @@ def gerar_pdf_tecnico(
         c.drawString(40, y, f"{nome}: {valor}")
         y -= 14
 
-        if y < 80:
-            c.showPage()
-            y = altura - 40
-            c.setFont("Helvetica", 9)
-
-    # DAS
+    # 3. DAS TOTAL
     y -= 20
     c.setFont("Helvetica-Bold", 11)
-    c.drawString(40, y, "3. Impostos – Simples Nacional (DAS)")
+    c.drawString(40, y, "3. Simples Nacional – DAS")
     y -= 20
 
     c.setFont("Helvetica", 9)
-    c.drawString(40, y, f"DAS Total Mensal: {das}")
+    c.drawString(40, y, f"DAS Total Mensal: {das_total}")
     y -= 20
 
-    # RESULTADO
+    # 4. DAS DETALHADO
     c.setFont("Helvetica-Bold", 11)
-    c.drawString(40, y, "4. Resultado")
+    c.drawString(40, y, "4. DAS – Detalhamento por Tributo")
+    y -= 20
+
+    c.setFont("Helvetica", 9)
+    for tributo, valor in das_detalhado.items():
+        c.drawString(40, y, f"{tributo}: {valor}")
+        y -= 14
+
+    # 5. RESULTADO
+    y -= 20
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(40, y, "5. Resultado Final")
     y -= 20
 
     c.setFont("Helvetica", 9)
     c.drawString(40, y, f"Lucro Mensal: {lucro}")
 
     c.save()
+
