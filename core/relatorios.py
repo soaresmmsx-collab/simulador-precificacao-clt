@@ -1,9 +1,26 @@
 import os
+import base64
+import tempfile
+from assets.logo_base64 import LOGO_BASE64
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import cm
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase.pdfmetrics import stringWidth
+
+def carregar_logo_base64():
+    if not LOGO_BASE64:
+        return None
+
+    try:
+        logo_bytes = base64.b64decode(LOGO_BASE64)
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+        tmp.write(logo_bytes)
+        tmp.close()
+        return tmp.name
+    except Exception:
+        return None
+
 
 def carregar_logo(caminho_relativo):
     caminho_absoluto = os.path.join(os.getcwd(), caminho_relativo)
@@ -69,17 +86,18 @@ def gerar_proposta_comercial_pdf(
     y = altura - 3 * cm
 
     # LOGO
-    logo = carregar_logo(logo_path)
+   logo_tmp = carregar_logo_base64()
 
-    if logo:
+    if logo_tmp:
         c.drawImage(
-            logo,
+            logo_tmp,
             margem_esq,
             altura - 2.8 * cm,
             width=4 * cm,
             preserveAspectRatio=True,
             mask="auto"
         )
+
 
 
     # CABEÇALHO
@@ -169,7 +187,19 @@ def gerar_pdf_tecnico(
     lucro,
     das_detalhado
 ):
-   
+    
+   logo_tmp = carregar_logo_base64()
+
+    if logo_tmp:
+        c.drawImage(
+            logo_tmp,
+            margem_esq,
+            altura - 2.8 * cm,
+            width=4 * cm,
+            preserveAspectRatio=True,
+            mask="auto"
+        )
+
 
     c = canvas.Canvas(caminho_pdf, pagesize=A4)
     largura, altura = A4
