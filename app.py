@@ -7,7 +7,7 @@ from core.clt import calcular_clt
 from core.precificacao import precificar
 from core.simples import fator_r, anexo, aliquota
 from core.utils import brl
-from core.relatorios import gerar_pdf
+from core.relatorios import gerar_pdf_comercial, gerar_pdf_tecnico
 
 # --- LOGIN ---
 if "logged" not in st.session_state:
@@ -90,14 +90,11 @@ st.write("Anexo:", an)
 st.subheader("📄 Propostas")
 
 if st.button("📄 Gerar Proposta COMERCIAL (PDF)"):
-    gerar_pdf(
-        "assets/proposta_comercial.html",
-        {
-            "valor_nf": brl(preco_nf),
-            "margem": f"{margem*100:.2f}%",
-            "cargos": tabela_cargos
-        },
-        "proposta_comercial.pdf"
+    gerar_pdf_comercial(
+        "proposta_comercial.pdf",
+        brl(preco_nf),
+        f"{margem*100:.2f}%",
+        tabela_cargos
     )
     with open("proposta_comercial.pdf", "rb") as f:
         st.download_button(
@@ -108,15 +105,12 @@ if st.button("📄 Gerar Proposta COMERCIAL (PDF)"):
         )
 
 if st.button("📄 Gerar Proposta TÉCNICA (PDF)"):
-    gerar_pdf(
-        "assets/proposta_tecnica.html",
-        {
-            "cargos": tabela_cargos,
-            "clt": total_clt_detalhado,
-            "das": brl(das),
-            "lucro": brl(lucro)
-        },
-        "proposta_tecnica.pdf"
+    gerar_pdf_tecnico(
+        "proposta_tecnica.pdf",
+        tabela_cargos,
+        total_clt_detalhado,
+        brl(das),
+        brl(lucro)
     )
     with open("proposta_tecnica.pdf", "rb") as f:
         st.download_button(
