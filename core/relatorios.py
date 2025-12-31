@@ -1,17 +1,22 @@
-import os
 import base64
 import tempfile
-from assets.logo_base64 import LOGO_BASE64
+from datetime import date
+
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import cm
-from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase.pdfmetrics import stringWidth
 
-def carregar_logo_base64():
-    if not LOGO_BASE64:
-        return None
 
+# ======================================================
+# LOGO EMBUTIDA (BASE64)
+# ======================================================
+LOGO_BASE64 = """
+COLE_AQUI_SUA_LOGO_BASE64
+"""
+
+
+def _criar_arquivo_logo_temp():
     try:
         logo_bytes = base64.b64decode(LOGO_BASE64)
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
@@ -22,51 +27,46 @@ def carregar_logo_base64():
         return None
 
 
-def carregar_logo(caminho_relativo):
-    caminho_absoluto = os.path.join(os.getcwd(), caminho_relativo)
-
-    if not os.path.exists(caminho_absoluto):
-        return None
-
-    try:
-        return ImageReader(caminho_absoluto)
-    except Exception:
-        return None
-
-def draw_paragraph(c, text, x, y, max_width, leading=14):
-    textobject = c.beginText()
-    textobject.setTextOrigin(x, y)
+# ======================================================
+# FUNÇÕES DE LAYOUT
+# ======================================================
+def _draw_paragraph(c, texto, x, y, largura_max, font="Helvetica", size=10, leading=14):
+    c.setFont(font, size)
+    textobject = c.beginText(x, y)
     textobject.setLeading(leading)
 
-    for line in text.split("\n"):
-        words = line.split(" ")
-        current_line = ""
+    for linha in texto.split("\n"):
+        palavras = linha.split(" ")
+        linha_atual = ""
 
-        for word in words:
-            test_line = current_line + word + " "
-            if stringWidth(test_line, "Helvetica", 10) <= max_width:
-                current_line = test_line
+        for palavra in palavras:
+            teste = linha_atual + palavra + " "
+            if stringWidth(teste, font, size) <= largura_max:
+                linha_atual = teste
             else:
-                textobject.textLine(current_line)
-                current_line = word + " "
+                textobject.textLine(linha_atual)
+                linha_atual = palavra + " "
 
-        textobject.textLine(current_line)
+        textobject.textLine(linha_atual)
 
     c.drawText(textobject)
     return textobject.getY()
 
-def draw_footer(c, page_number):
+
+def _draw_footer(c, pagina):
     c.setFont("Helvetica-Oblique", 8)
     c.drawRightString(
         A4[0] - 2 * cm,
         1.5 * cm,
-        f"Página {page_number}"
+        f"Página {pagina}"
     )
 
 
+# ======================================================
+# PDF COMERCIAL
+# ======================================================
 def gerar_proposta_comercial_pdf(
     caminho_pdf,
-    logo_path,
     cliente,
     titulo,
     descricao,
@@ -82,23 +82,20 @@ def gerar_proposta_comercial_pdf(
     margem_dir = 2.5 * cm
     largura_texto = largura - margem_esq - margem_dir
 
-    page = 1
+    pagina = 1
     y = altura - 3 * cm
 
     # LOGO
-   logo_tmp = carregar_logo_base64()
-
-    if logo_tmp:
+    logo_temp = _criar_arquivo_logo_temp()
+    if logo_temp:
         c.drawImage(
-            logo_tmp,
+            logo_temp,
             margem_esq,
             altura - 2.8 * cm,
             width=4 * cm,
             preserveAspectRatio=True,
             mask="auto"
         )
-
-
 
     # CABEÇALHO
     c.setFont("Helvetica-Bold", 16)
@@ -117,42 +114,56 @@ def gerar_proposta_comercial_pdf(
     c.drawRightString(
         largura - margem_dir,
         altura - 3.2 * cm,
-        f"Validade: {validade}"
+        f"Data: {date.today().strftime('%d/%m/%Y')} | Validade: {validade}"
     )
 
     y -= 2 * cm
 
     # TÍTULO
-    c.setFont("Helvetica-Bold", 12)
-    y = draw_paragraph(c, titulo, margem_esq, y, largura_texto, 16) - 20
+    y = _draw_paragraph(
+        c,
+        titulo,
+        margem_esq,
+        y,
+        largura_texto,
+        font="Helvetica-Bold",
+        size=12,
+        leading=16
+    ) - 20
 
-    # TEXTO DA PROPOSTA (IA-FRIENDLY)
-    c.setFont("Helvetica", 10)
+    # TEXTO COMERCIAL (PROFISSIONAL)
     texto_comercial = (
-        f"A J Talent apresenta a presente proposta comercial com o objetivo de "
-        f"fornecer profissionais qualificados conforme escopo abaixo descrito.\n\n"
+        "A J Talent apresenta a presente proposta comercial com o objetivo de "
+        "fornecer profissionais qualificados, alinhados às necessidades do cliente, "
+        "assegurando conformidade legal, previsibilidade financeira e excelência operacional.\n\n"
         f"{descricao}\n\n"
-        f"A estrutura de custos foi elaborada com base em conformidade legal, "
-        f"previsibilidade financeira e sustentabilidade operacional."
+        "A estrutura desta proposta foi elaborada com base em custos reais, "
+        "encargos legais aplicáveis e margem sustentável, garantindo segurança "
+        "jurídica e financeira para ambas as partes."
     )
 
-    y = draw_paragraph(c, texto_comercial, margem_esq, y, largura_texto)
-
-    # QUEBRA DE PÁGINA
-    if y < 5 * cm:
-        draw_footer(c, page)
-        c.showPage()
-        page += 1
-        y = altura - 3 * cm
+    y = _draw_paragraph(
+        c,
+        texto_comercial,
+        margem_esq,
+        y,
+        largura_texto
+    )
 
     # ESCOPO
-    c.setFont("Helvetica-Bold", 11)
     y -= 20
-    y = draw_paragraph(c, "Escopo de Alocação:", margem_esq, y, largura_texto)
+    y = _draw_paragraph(
+        c,
+        "Escopo de Alocação:",
+        margem_esq,
+        y,
+        largura_texto,
+        font="Helvetica-Bold",
+        size=11
+    )
 
-    c.setFont("Helvetica", 10)
     for cargo in cargos:
-        y = draw_paragraph(
+        y = _draw_paragraph(
             c,
             f"- {cargo['Cargo']} (Quantidade: {cargo['Quantidade']})",
             margem_esq,
@@ -160,25 +171,33 @@ def gerar_proposta_comercial_pdf(
             largura_texto
         )
 
-    # VALOR
+    # CONDIÇÕES
     y -= 20
-    c.setFont("Helvetica-Bold", 11)
-    y = draw_paragraph(c, "Condições Comerciais:", margem_esq, y, largura_texto)
-
-    c.setFont("Helvetica", 10)
-    y = draw_paragraph(
+    y = _draw_paragraph(
         c,
-        f"Valor mensal da proposta: {valor_nf}\n"
-        f"Margem aplicada: {margem}",
+        "Condições Comerciais:",
+        margem_esq,
+        y,
+        largura_texto,
+        font="Helvetica-Bold",
+        size=11
+    )
+
+    y = _draw_paragraph(
+        c,
+        f"Valor mensal da proposta: {valor_nf}\nMargem aplicada: {margem}",
         margem_esq,
         y,
         largura_texto
     )
 
-    draw_footer(c, page)
+    _draw_footer(c, pagina)
     c.save()
 
 
+# ======================================================
+# PDF TÉCNICO
+# ======================================================
 def gerar_pdf_tecnico(
     caminho_pdf,
     cargos,
@@ -187,20 +206,6 @@ def gerar_pdf_tecnico(
     lucro,
     das_detalhado
 ):
-    
-   logo_tmp = carregar_logo_base64()
-
-    if logo_tmp:
-        c.drawImage(
-            logo_tmp,
-            margem_esq,
-            altura - 2.8 * cm,
-            width=4 * cm,
-            preserveAspectRatio=True,
-            mask="auto"
-        )
-
-
     c = canvas.Canvas(caminho_pdf, pagesize=A4)
     largura, altura = A4
 
@@ -208,73 +213,133 @@ def gerar_pdf_tecnico(
     margem_dir = 2.5 * cm
     largura_texto = largura - margem_esq - margem_dir
 
-    page = 1
+    pagina = 1
     y = altura - 3 * cm
 
-    c.setFont("Helvetica-Bold", 14)
-    y = draw_paragraph(
+    # LOGO
+    logo_temp = _criar_arquivo_logo_temp()
+    if logo_temp:
+        c.drawImage(
+            logo_temp,
+            margem_esq,
+            altura - 2.8 * cm,
+            width=4 * cm,
+            preserveAspectRatio=True,
+            mask="auto"
+        )
+
+    # TÍTULO
+    y = _draw_paragraph(
         c,
         "PROPOSTA TÉCNICA – MEMÓRIA DE CÁLCULO",
         margem_esq,
         y,
         largura_texto,
-        18
+        font="Helvetica-Bold",
+        size=14,
+        leading=18
     )
 
     # CARGOS
-    c.setFont("Helvetica-Bold", 11)
     y -= 20
-    y = draw_paragraph(c, "1. Custos por Cargo", margem_esq, y, largura_texto)
+    y = _draw_paragraph(
+        c,
+        "1. Custos por Cargo",
+        margem_esq,
+        y,
+        largura_texto,
+        font="Helvetica-Bold",
+        size=11
+    )
 
-    c.setFont("Helvetica", 9)
     for cargo in cargos:
         texto = (
             f"{cargo['Cargo']} | Qtd: {cargo['Quantidade']} | "
-            f"Salário: {cargo['Salário Base']} | "
+            f"Salário Base: {cargo['Salário Base']} | "
             f"Custo Unitário: {cargo['Custo Unitário']}"
         )
-        y = draw_paragraph(c, texto, margem_esq, y, largura_texto)
-
-        if y < 4 * cm:
-            draw_footer(c, page)
-            c.showPage()
-            page += 1
-            y = altura - 3 * cm
+        y = _draw_paragraph(c, texto, margem_esq, y, largura_texto)
 
     # CLT
-    c.setFont("Helvetica-Bold", 11)
     y -= 20
-    y = draw_paragraph(c, "2. Encargos CLT Consolidados", margem_esq, y, largura_texto)
+    y = _draw_paragraph(
+        c,
+        "2. Encargos CLT Consolidados",
+        margem_esq,
+        y,
+        largura_texto,
+        font="Helvetica-Bold",
+        size=11
+    )
 
-    c.setFont("Helvetica", 9)
     for nome, valor in clt_detalhado.items():
-        y = draw_paragraph(c, f"{nome}: {valor}", margem_esq, y, largura_texto)
+        y = _draw_paragraph(
+            c,
+            f"{nome}: {valor}",
+            margem_esq,
+            y,
+            largura_texto
+        )
 
     # DAS
-    c.setFont("Helvetica-Bold", 11)
     y -= 20
-    y = draw_paragraph(c, "3. Simples Nacional – DAS", margem_esq, y, largura_texto)
+    y = _draw_paragraph(
+        c,
+        "3. Simples Nacional – DAS",
+        margem_esq,
+        y,
+        largura_texto,
+        font="Helvetica-Bold",
+        size=11
+    )
 
-    c.setFont("Helvetica", 9)
-    y = draw_paragraph(c, f"DAS Total Mensal: {das_total}", margem_esq, y, largura_texto)
+    y = _draw_paragraph(
+        c,
+        f"DAS Total Mensal: {das_total}",
+        margem_esq,
+        y,
+        largura_texto
+    )
 
-    c.setFont("Helvetica-Bold", 11)
-    y -= 20
-    y = draw_paragraph(c, "4. DAS – Detalhamento por Tributo", margem_esq, y, largura_texto)
+    y -= 10
+    y = _draw_paragraph(
+        c,
+        "4. DAS – Detalhamento por Tributo",
+        margem_esq,
+        y,
+        largura_texto,
+        font="Helvetica-Bold",
+        size=11
+    )
 
-    c.setFont("Helvetica", 9)
     for tributo, valor in das_detalhado.items():
-        y = draw_paragraph(c, f"{tributo}: {valor}", margem_esq, y, largura_texto)
+        y = _draw_paragraph(
+            c,
+            f"{tributo}: {valor}",
+            margem_esq,
+            y,
+            largura_texto
+        )
 
     # RESULTADO
-    c.setFont("Helvetica-Bold", 11)
     y -= 20
-    y = draw_paragraph(c, "5. Resultado Final", margem_esq, y, largura_texto)
+    y = _draw_paragraph(
+        c,
+        "5. Resultado Final",
+        margem_esq,
+        y,
+        largura_texto,
+        font="Helvetica-Bold",
+        size=11
+    )
 
-    c.setFont("Helvetica", 9)
-    y = draw_paragraph(c, f"Lucro Mensal: {lucro}", margem_esq, y, largura_texto)
+    y = _draw_paragraph(
+        c,
+        f"Lucro Mensal: {lucro}",
+        margem_esq,
+        y,
+        largura_texto
+    )
 
-    draw_footer(c, page)
+    _draw_footer(c, pagina)
     c.save()
-
-
