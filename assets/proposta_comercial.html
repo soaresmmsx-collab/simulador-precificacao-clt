@@ -1,3 +1,11 @@
 <h2>Proposta Comercial</h2>
-<p>Valor mensal: {{ total }}</p>
-<p>Escopo conforme acordado.</p>
+
+<p><strong>Valor mensal da proposta:</strong> {{ valor_nf }}</p>
+<p><strong>Margem aplicada:</strong> {{ margem }}</p>
+
+<h3>Cargos</h3>
+<ul>
+{% for c in cargos %}
+  <li>{{ c["Cargo"] }} (Qtd: {{ c["Quantidade"] }})</li>
+{% endfor %}
+</ul>
