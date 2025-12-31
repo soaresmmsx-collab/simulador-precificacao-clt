@@ -7,16 +7,14 @@ from reportlab.lib.units import cm
 from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.lib.utils import ImageReader
 
-
 # ======================================================
 # CONFIGURAÇÕES GERAIS
 # ======================================================
 
 MARGEM_ESQ = 2.5 * cm
 MARGEM_DIR = 2.5 * cm
-MARGEM_INF = 4.5 * cm   # margem de segurança reforçada
+MARGEM_INF = 4.5 * cm
 LARGURA_TEXTO = A4[0] - (MARGEM_ESQ + MARGEM_DIR)
-
 
 # ======================================================
 # FORMATAÇÃO
@@ -28,54 +26,13 @@ def _brl(valor):
     except Exception:
         return str(valor)
 
-
 # ======================================================
 # FUNÇÕES AUXILIARES
 # ======================================================
 
-def _draw_paragraph(c, texto, x, y, largura, font="Helvetica", size=10, leading=14):
-    c.setFont(font, size)
-    t = c.beginText(x, y)
-    t.setLeading(leading)
-
-    for linha in texto.split("\n"):
-        palavras = linha.split(" ")
-        atual = ""
-        for p in palavras:
-            teste = atual + p + " "
-            if stringWidth(teste, font, size) <= largura:
-                atual = teste
-            else:
-                t.textLine(atual)
-                atual = p + " "
-        t.textLine(atual)
-
-    c.drawText(t)
-    return t.getY()
-
-
 def _footer(c, pagina):
     c.setFont("Helvetica-Oblique", 8)
     c.drawRightString(A4[0] - MARGEM_DIR, 1.5 * cm, f"Página {pagina}")
-
-
-def _nova_pagina(c, pagina, titulo, subtitulo):
-    _footer(c, pagina)
-    c.showPage()
-    pagina += 1
-    y = _cabecalho(c, titulo, subtitulo)
-    return y, pagina
-
-
-def _quebra_pagina_se_necessario(c, y, pagina, titulo, subtitulo):
-    if y < MARGEM_INF:
-        return _nova_pagina(c, pagina, titulo, subtitulo)
-    return y, pagina
-
-
-# ======================================================
-# CABEÇALHO PADRÃO
-# ======================================================
 
 def _cabecalho(c, titulo, subtitulo):
     largura, altura = A4
@@ -91,9 +48,13 @@ def _cabecalho(c, titulo, subtitulo):
         y_logo = base + ((topo - base - logo_h) / 2)
 
         c.drawImage(
-            logo, MARGEM_ESQ, y_logo,
-            width=logo_w, height=logo_h,
-            preserveAspectRatio=True, mask="auto"
+            logo,
+            MARGEM_ESQ,
+            y_logo,
+            width=logo_w,
+            height=logo_h,
+            preserveAspectRatio=True,
+            mask="auto"
         )
 
     c.setFont("Helvetica-Bold", 16)
@@ -112,9 +73,49 @@ def _cabecalho(c, titulo, subtitulo):
 
     return altura - 5.5 * cm
 
+def _nova_pagina(c, pagina, titulo, subtitulo):
+    _footer(c, pagina)
+    c.showPage()
+    pagina += 1
+    y = _cabecalho(c, titulo, subtitulo)
+    return y, pagina
 
 # ======================================================
-# PDF COMERCIAL
+# PAGINAÇÃO PREVENTIVA (LINHA A LINHA)
+# ======================================================
+
+def _draw_texto_paginado(
+    c, texto, y, pagina, titulo, subtitulo,
+    font="Helvetica", size=11, leading=16
+):
+    c.setFont(font, size)
+
+    linhas = []
+    for paragrafo in texto.split("\n"):
+        palavras = paragrafo.split(" ")
+        linha = ""
+        for p in palavras:
+            teste = linha + p + " "
+            if stringWidth(teste, font, size) <= LARGURA_TEXTO:
+                linha = teste
+            else:
+                linhas.append(linha)
+                linha = p + " "
+        linhas.append(linha)
+        linhas.append("")
+
+    for linha in linhas:
+        if y < MARGEM_INF:
+            y, pagina = _nova_pagina(c, pagina, titulo, subtitulo)
+            c.setFont(font, size)
+
+        c.drawString(MARGEM_ESQ, y, linha)
+        y -= leading
+
+    return y, pagina
+
+# ======================================================
+# PDF COMERCIAL (CAPA + COMERCIAL ROBUSTO)
 # ======================================================
 
 def gerar_proposta_comercial_pdf(
@@ -132,17 +133,36 @@ def gerar_proposta_comercial_pdf(
     c = canvas.Canvas(caminho, pagesize=A4)
     pagina = 1
 
-    # CAPA EXECUTIVA
+    # ---------- CAPA EXECUTIVA ----------
     y = _cabecalho(c, "PROPOSTA EXECUTIVA", f"{cliente} | Validade: {validade}")
 
-    y = _draw_paragraph(c, titulo, MARGEM_ESQ, y, LARGURA_TEXTO,
-                        font="Helvetica-Bold", size=14, leading=18)
+    y, pagina = _draw_texto_paginado(
+        c,
+        titulo,
+        y,
+        pagina,
+        "PROPOSTA EXECUTIVA",
+        f"{cliente} | Validade: {validade}",
+        font="Helvetica-Bold",
+        size=14,
+        leading=20
+    )
+
+    y -= 10
+
+    y, pagina = _draw_texto_paginado(
+        c,
+        resumo_executivo,
+        y,
+        pagina,
+        "PROPOSTA EXECUTIVA",
+        f"{cliente} | Validade: {validade}",
+        font="Helvetica",
+        size=11,
+        leading=16
+    )
+
     y -= 20
-
-    y = _draw_paragraph(c, resumo_executivo, MARGEM_ESQ, y, LARGURA_TEXTO,
-                        font="Helvetica", size=11, leading=16)
-
-    y -= 30
     c.setFont("Helvetica-Bold", 14)
     c.drawString(MARGEM_ESQ, y, "Valor mensal da proposta")
     y -= 18
@@ -151,59 +171,52 @@ def gerar_proposta_comercial_pdf(
 
     _footer(c, pagina)
 
-    # PROPOSTA COMERCIAL
+    # ---------- PROPOSTA COMERCIAL ----------
     y, pagina = _nova_pagina(
         c, pagina,
         "PROPOSTA COMERCIAL",
         f"{cliente} | {date.today().strftime('%d/%m/%Y')}"
     )
 
-    y = _draw_paragraph(c, texto_institucional, MARGEM_ESQ, y, LARGURA_TEXTO)
-    y -= 15
-    y, pagina = _quebra_pagina_se_necessario(
-        c, y, pagina, "PROPOSTA COMERCIAL",
+    y, pagina = _draw_texto_paginado(
+        c,
+        texto_institucional,
+        y,
+        pagina,
+        "PROPOSTA COMERCIAL",
         f"{cliente} | {date.today().strftime('%d/%m/%Y')}"
     )
 
-    y = _draw_paragraph(c, texto_comercial, MARGEM_ESQ, y, LARGURA_TEXTO)
-    y -= 20
-    y, pagina = _quebra_pagina_se_necessario(
-        c, y, pagina, "PROPOSTA COMERCIAL",
+    y, pagina = _draw_texto_paginado(
+        c,
+        texto_comercial,
+        y,
+        pagina,
+        "PROPOSTA COMERCIAL",
         f"{cliente} | {date.today().strftime('%d/%m/%Y')}"
     )
 
-    c.setFont("Helvetica-Bold", 11)
-    c.drawString(MARGEM_ESQ, y, "Escopo de Alocação")
-    y -= 10
-
-    for cargo in cargos:
-        y = _draw_paragraph(
-            c,
-            f"- {cargo['Cargo']} (Quantidade: {cargo['Quantidade']})",
-            MARGEM_ESQ, y, LARGURA_TEXTO
-        )
-        y, pagina = _quebra_pagina_se_necessario(
-            c, y, pagina, "PROPOSTA COMERCIAL",
-            f"{cliente} | {date.today().strftime('%d/%m/%Y')}"
-        )
-
-    y -= 20
-    y, pagina = _quebra_pagina_se_necessario(
-        c, y, pagina, "PROPOSTA COMERCIAL",
-        f"{cliente} | {date.today().strftime('%d/%m/%Y')}"
+    # ---------- ENCERRAMENTO FIXO ----------
+    encerramento = (
+        "Atenciosamente,\n\n"
+        "Jhonny Souza\n"
+        "J Talent - Equipe Comercial"
     )
 
-    c.rect(MARGEM_ESQ, y - 45, LARGURA_TEXTO, 45)
-    c.setFont("Helvetica-Bold", 10)
-    c.drawString(MARGEM_ESQ + 10, y - 20, f"Valor mensal: {valor_nf}")
-    c.drawString(MARGEM_ESQ + 10, y - 35, f"Margem aplicada: {margem}")
+    y, pagina = _draw_texto_paginado(
+        c,
+        encerramento,
+        y,
+        pagina,
+        "PROPOSTA COMERCIAL",
+        f"{cliente} | {date.today().strftime('%d/%m/%Y')}"
+    )
 
     _footer(c, pagina)
     c.save()
 
-
 # ======================================================
-# PDF TÉCNICO (FORMATADO COM R$)
+# PDF TÉCNICO (JÁ VALIDADO)
 # ======================================================
 
 def gerar_pdf_tecnico(
@@ -223,70 +236,84 @@ def gerar_pdf_tecnico(
         "Memória de Cálculo – Custos, Encargos e Tributos"
     )
 
-    y = _draw_paragraph(
-        c, "1. Custos por Cargo",
-        MARGEM_ESQ, y, LARGURA_TEXTO,
-        font="Helvetica-Bold", size=11
-    )
+    y = _draw_texto_paginado(
+        c,
+        "1. Custos por Cargo",
+        y,
+        pagina,
+        "PROPOSTA TÉCNICA",
+        "Memória de Cálculo – Custos, Encargos e Tributos",
+        font="Helvetica-Bold",
+        size=11,
+        leading=14
+    )[0]
 
     for cargo in cargos:
-        y = _draw_paragraph(
-            c,
+        linha = (
             f"{cargo['Cargo']} | "
             f"Qtd: {cargo['Quantidade']} | "
             f"Salário Base: {_brl(cargo['Salário Base'])} | "
-            f"Custo Unitário: {_brl(cargo['Custo Unitário'])}",
-            MARGEM_ESQ, y, LARGURA_TEXTO
+            f"Custo Unitário: {_brl(cargo['Custo Unitário'])}"
+        )
+        y, pagina = _draw_texto_paginado(
+            c,
+            linha,
+            y,
+            pagina,
+            "PROPOSTA TÉCNICA",
+            "Memória de Cálculo – Custos, Encargos e Tributos",
+            size=10,
+            leading=14
         )
 
-    y -= 20
-    y = _draw_paragraph(
-        c, "2. Encargos CLT Consolidados",
-        MARGEM_ESQ, y, LARGURA_TEXTO,
-        font="Helvetica-Bold", size=11
+    y, pagina = _draw_texto_paginado(
+        c,
+        "\n2. Encargos CLT Consolidados",
+        y,
+        pagina,
+        "PROPOSTA TÉCNICA",
+        "Memória de Cálculo – Custos, Encargos e Tributos",
+        font="Helvetica-Bold",
+        size=11,
+        leading=14
     )
 
     for nome, valor in clt_detalhado.items():
-        y = _draw_paragraph(
-            c, f"{nome}: {_brl(valor)}",
-            MARGEM_ESQ, y, LARGURA_TEXTO
+        y, pagina = _draw_texto_paginado(
+            c,
+            f"{nome}: {_brl(valor)}",
+            y,
+            pagina,
+            "PROPOSTA TÉCNICA",
+            "Memória de Cálculo – Custos, Encargos e Tributos",
+            size=10,
+            leading=14
         )
 
-    y -= 20
-    y = _draw_paragraph(
-        c, "3. Simples Nacional – DAS",
-        MARGEM_ESQ, y, LARGURA_TEXTO,
-        font="Helvetica-Bold", size=11
+    y, pagina = _draw_texto_paginado(
+        c,
+        "\n3. Simples Nacional – DAS\n"
+        f"DAS Total Mensal: {_brl(das_total)}",
+        y,
+        pagina,
+        "PROPOSTA TÉCNICA",
+        "Memória de Cálculo – Custos, Encargos e Tributos",
+        font="Helvetica-Bold",
+        size=11,
+        leading=14
     )
 
-    y = _draw_paragraph(
-        c, f"DAS Total Mensal: {_brl(das_total)}",
-        MARGEM_ESQ, y, LARGURA_TEXTO
-    )
-
-    y -= 10
-    y = _draw_paragraph(
-        c, "4. DAS – Detalhamento por Tributo",
-        MARGEM_ESQ, y, LARGURA_TEXTO,
-        font="Helvetica-Bold", size=11
-    )
-
-    for tributo, valor in das_detalhado.items():
-        y = _draw_paragraph(
-            c, f"{tributo}: {_brl(valor)}",
-            MARGEM_ESQ, y, LARGURA_TEXTO
-        )
-
-    y -= 20
-    y = _draw_paragraph(
-        c, "5. Resultado Final",
-        MARGEM_ESQ, y, LARGURA_TEXTO,
-        font="Helvetica-Bold", size=11
-    )
-
-    y = _draw_paragraph(
-        c, f"Lucro Mensal: {_brl(lucro)}",
-        MARGEM_ESQ, y, LARGURA_TEXTO
+    y, pagina = _draw_texto_paginado(
+        c,
+        "\n4. Resultado Final\n"
+        f"Lucro Mensal: {_brl(lucro)}",
+        y,
+        pagina,
+        "PROPOSTA TÉCNICA",
+        "Memória de Cálculo – Custos, Encargos e Tributos",
+        font="Helvetica-Bold",
+        size=11,
+        leading=14
     )
 
     _footer(c, pagina)
