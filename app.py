@@ -53,8 +53,11 @@ st.set_page_config(
 # ===============================
 # LOGIN
 # ===============================
-if not login():
+login()
+
+if not st.session_state.get("logged", False):
     st.stop()
+
 
 st.title("📊 Simulador de Precificação CLT")
 
