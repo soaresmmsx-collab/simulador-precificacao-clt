@@ -14,15 +14,74 @@ def gerar_proposta_comercial_pdf(
     cargos
 ):
     c = canvas.Canvas(caminho_pdf, pagesize=A4)
+    largura, altura = A4
 
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(50, 800, "PROPOSTA COMERCIAL")
+    # LOGO
+    c.drawImage(
+        logo_path,
+        40,
+        altura - 100,
+        width=120,
+        preserveAspectRatio=True,
+        mask="auto"
+    )
+
+    # CABEÇALHO
+    c.setFont("Helvetica-Bold", 16)
+    c.drawString(200, altura - 60, "PROPOSTA COMERCIAL")
 
     c.setFont("Helvetica", 10)
-    c.drawString(50, 770, f"Cliente: {cliente}")
-    c.drawString(50, 750, f"Título: {titulo}")
-    c.drawString(50, 730, f"Validade: {validade}")
-    c.drawString(50, 710, f"Valor mensal: {valor_nf}")
+    c.drawString(200, altura - 80, f"Cliente: {cliente}")
+    c.drawString(200, altura - 95, f"Validade: {validade}")
+
+    y = altura - 140
+
+    # TÍTULO
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(40, y, titulo)
+    y -= 25
+
+    # DESCRIÇÃO / ESCOPO
+    c.setFont("Helvetica", 10)
+    for linha in descricao.split("\n"):
+        c.drawString(40, y, linha)
+        y -= 14
+
+    y -= 20
+
+    # CARGOS
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(40, y, "Escopo de Alocação")
+    y -= 18
+
+    c.setFont("Helvetica", 10)
+    for cargo in cargos:
+        c.drawString(
+            40,
+            y,
+            f"- {cargo['Cargo']} (Quantidade: {cargo['Quantidade']})"
+        )
+        y -= 14
+
+    y -= 20
+
+    # VALOR
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(40, y, "Condições Comerciais")
+    y -= 18
+
+    c.setFont("Helvetica", 10)
+    c.drawString(40, y, f"Valor mensal da proposta: {valor_nf}")
+    y -= 14
+    c.drawString(40, y, f"Margem aplicada: {margem}")
+
+    # RODAPÉ
+    c.setFont("Helvetica-Oblique", 8)
+    c.drawString(
+        40,
+        40,
+        "Proposta elaborada pela J Talent com base em custos reais, encargos legais e regime Simples Nacional."
+    )
 
     c.save()
 
