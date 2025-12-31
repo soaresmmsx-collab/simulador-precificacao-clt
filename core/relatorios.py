@@ -58,13 +58,16 @@ def _footer(c, pagina):
 
 def _desenhar_logo(c, x, y, largura_cm=4):
     """
-    Desenha a logo a partir de assets/logo.png
+    Desenha a logo usando caminho absoluto baseado no arquivo relatorios.py
+    (compatível com Streamlit Cloud)
     """
-    caminho_logo = os.path.join("assets", "logo.png")
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    caminho_logo = os.path.join(base_dir, "..", "assets", "logo.png")
+    caminho_logo = os.path.normpath(caminho_logo)
 
     if not os.path.exists(caminho_logo):
         raise FileNotFoundError(
-            "Arquivo da logo não encontrado em assets/logo.png"
+            f"Logo não encontrada em: {caminho_logo}"
         )
 
     c.drawImage(
@@ -75,6 +78,7 @@ def _desenhar_logo(c, x, y, largura_cm=4):
         preserveAspectRatio=True,
         mask="auto"
     )
+
 
 
 # ======================================================
