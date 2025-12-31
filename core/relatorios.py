@@ -73,15 +73,26 @@ def _desenhar_cabecalho_padrao(c, titulo_principal, subtitulo):
 
     if os.path.exists(caminho_logo):
         logo = ImageReader(caminho_logo)
+        logo_largura = 3.5 * cm
+        logo_altura = 3.5 * cm
+        
+        # faixa vertical do cabeçalho
+        topo_cabecalho = altura - 2.2 * cm
+        base_cabecalho = altura - 3.7 * cm
+        
+        # cálculo do centro vertical do cabeçalho
+        y_logo = base_cabecalho + ((topo_cabecalho - base_cabecalho - logo_altura) / 2)
+        
         c.drawImage(
             logo,
             margem_esq,
-            altura - 3.2 * cm,
-            width=3.5 * cm,
-            height=3.5 * cm,
+            y_logo,
+            width=logo_largura,
+            height=logo_altura,
             preserveAspectRatio=True,
             mask="auto"
         )
+
 
     # Título principal
     c.setFont("Helvetica-Bold", 16)
