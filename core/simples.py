@@ -8,6 +8,10 @@ def anexo(fr):
 
 def aliquota(rbt12, an):
     for f in TABELA_SIMPLES:
-        if f["anexo"] == an and f["min"] <= rbt12 <= f["max"]:
-            return (rbt12*f["aliquota"] - f["deducao"]) / rbt12
-    return 0
+        if f["anexo"] == an and rbt12 <= f["max"]:
+            return (rbt12 * f["aliquota"] - f["deducao"]) / rbt12
+
+    # fallback de segurança (última faixa)
+    ultima = [f for f in TABELA_SIMPLES if f["anexo"] == an][-1]
+    return (rbt12 * ultima["aliquota"] - ultima["deducao"]) / rbt12
+
