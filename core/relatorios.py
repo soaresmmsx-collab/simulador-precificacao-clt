@@ -7,7 +7,7 @@ from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.lib.utils import ImageReader
 
 # ======================================================
-# CONFIGURAÇÕES
+# CONFIGURAÇÕES GERAIS
 # ======================================================
 
 MARGEM_ESQ = 2.5 * cm
@@ -15,18 +15,18 @@ MARGEM_DIR = 2.5 * cm
 MARGEM_INF = 4.5 * cm
 LARGURA_TEXTO = A4[0] - (MARGEM_ESQ + MARGEM_DIR)
 
-LEADING_TEXTO = 18
-LEADING_TITULO = 22
+FONT_TEXTO = "Helvetica"
+FONT_TITULO = "Helvetica-Bold"
+
+SIZE_TEXTO = 11
+SIZE_TITULO = 14
+
+LEADING = 18            # ~1,5
+ESPACO_PARAGRAFO = 6    # espaço reduzido entre parágrafos
 
 # ======================================================
 # UTILIDADES
 # ======================================================
-
-def _brl(valor):
-    try:
-        return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-    except Exception:
-        return str(valor)
 
 def _footer(c, pagina):
     c.setFont("Helvetica-Oblique", 8)
@@ -48,6 +48,7 @@ def _cabecalho(c, titulo, subtitulo):
 
     c.setFont("Helvetica-Bold", 16)
     c.drawRightString(largura - MARGEM_DIR, altura - 2.2 * cm, titulo)
+
     c.setFont("Helvetica", 11)
     c.drawRightString(largura - MARGEM_DIR, altura - 2.9 * cm, subtitulo)
 
@@ -68,42 +69,59 @@ def _nova_pagina(c, pagina, titulo, subtitulo):
     return y, pagina
 
 # ======================================================
-# TEXTO PAGINADO (ROBUSTO)
+# TEXTO JUSTIFICADO + PAGINAÇÃO PREVENTIVA
 # ======================================================
 
-def _draw_texto_paginado(
+def _draw_texto_justificado(
     c, texto, y, pagina, titulo, subtitulo,
-    font="Helvetica", size=11, leading=LEADING_TEXTO
+    font=FONT_TEXTO, size=SIZE_TEXTO, leading=LEADING
 ):
     c.setFont(font, size)
 
-    linhas = []
-    for p in texto.split("\n"):
-        palavras = p.split(" ")
-        linha = ""
-        for w in palavras:
-            teste = linha + w + " "
-            if stringWidth(teste, font, size) <= LARGURA_TEXTO:
-                linha = teste
+    for paragrafo in texto.split("\n"):
+        palavras = paragrafo.split()
+        linha = []
+        largura_linha = 0
+
+        for palavra in palavras:
+            w = stringWidth(palavra + " ", font, size)
+            if largura_linha + w <= LARGURA_TEXTO:
+                linha.append(palavra)
+                largura_linha += w
             else:
-                linhas.append(linha.rstrip())
-                linha = w + " "
-        linhas.append(linha.rstrip())
-        linhas.append(None)
+                if y < MARGEM_INF:
+                    y, pagina = _nova_pagina(c, pagina, titulo, subtitulo)
+                    c.setFont(font, size)
 
-    for linha in linhas:
-        if linha is None:
-            y -= leading / 2
-            continue
+                _draw_linha_justificada(c, linha, y, font, size)
+                y -= leading
+                linha = [palavra]
+                largura_linha = stringWidth(palavra + " ", font, size)
 
-        if y < MARGEM_INF:
-            y, pagina = _nova_pagina(c, pagina, titulo, subtitulo)
-            c.setFont(font, size)
+        if linha:
+            if y < MARGEM_INF:
+                y, pagina = _nova_pagina(c, pagina, titulo, subtitulo)
+                c.setFont(font, size)
+            c.drawString(MARGEM_ESQ, y, " ".join(linha))
+            y -= leading
 
-        c.drawString(MARGEM_ESQ, y, linha)
-        y -= leading
+        y -= ESPACO_PARAGRAFO
 
     return y, pagina
+
+def _draw_linha_justificada(c, palavras, y, font, size):
+    if len(palavras) == 1:
+        c.drawString(MARGEM_ESQ, y, palavras[0])
+        return
+
+    largura_palavras = sum(stringWidth(p, font, size) for p in palavras)
+    espaco_total = LARGURA_TEXTO - largura_palavras
+    espaco = espaco_total / (len(palavras) - 1)
+
+    x = MARGEM_ESQ
+    for p in palavras:
+        c.drawString(x, y, p)
+        x += stringWidth(p, font, size) + espaco
 
 # ======================================================
 # PDF COMERCIAL
@@ -120,20 +138,17 @@ def gerar_proposta_comercial_pdf(
     # CAPA
     y = _cabecalho(c, "PROPOSTA EXECUTIVA", f"{cliente} | Validade: {validade}")
 
-    y, pagina = _draw_texto_paginado(
-        c, titulo, y, pagina,
-        "PROPOSTA EXECUTIVA", f"{cliente} | Validade: {validade}",
-        font="Helvetica-Bold", size=14, leading=LEADING_TITULO
-    )
+    c.setFont(FONT_TITULO, SIZE_TITULO)
+    c.drawString(MARGEM_ESQ, y, titulo)
+    y -= LEADING
 
-    y -= 10
-    y, pagina = _draw_texto_paginado(
+    y, pagina = _draw_texto_justificado(
         c, resumo_executivo, y, pagina,
         "PROPOSTA EXECUTIVA", f"{cliente} | Validade: {validade}"
     )
 
     y -= 20
-    c.setFont("Helvetica-Bold", 18)
+    c.setFont(FONT_TITULO, 18)
     c.drawString(MARGEM_ESQ, y, valor_nf)
 
     _footer(c, pagina)
@@ -145,21 +160,21 @@ def gerar_proposta_comercial_pdf(
         f"{cliente} | {date.today().strftime('%d/%m/%Y')}"
     )
 
-    c.setFont("Helvetica-Bold", 13)
+    c.setFont(FONT_TITULO, SIZE_TITULO)
     c.drawString(MARGEM_ESQ, y, "Contexto Institucional")
-    y -= LEADING_TITULO / 2
+    y -= LEADING
 
-    y, pagina = _draw_texto_paginado(
+    y, pagina = _draw_texto_justificado(
         c, texto_institucional, y, pagina,
         "PROPOSTA COMERCIAL",
         f"{cliente} | {date.today().strftime('%d/%m/%Y')}"
     )
 
-    c.setFont("Helvetica-Bold", 13)
+    c.setFont(FONT_TITULO, SIZE_TITULO)
     c.drawString(MARGEM_ESQ, y, "Proposta Comercial")
-    y -= LEADING_TITULO / 2
+    y -= LEADING
 
-    y, pagina = _draw_texto_paginado(
+    y, pagina = _draw_texto_justificado(
         c, texto_comercial, y, pagina,
         "PROPOSTA COMERCIAL",
         f"{cliente} | {date.today().strftime('%d/%m/%Y')}"
@@ -173,76 +188,11 @@ def gerar_proposta_comercial_pdf(
         "E-mail: contato@jtalent.com.br"
     )
 
-    y, pagina = _draw_texto_paginado(
+    y, pagina = _draw_texto_justificado(
         c, assinatura, y, pagina,
         "PROPOSTA COMERCIAL",
-        f"{cliente} | {date.today().strftime('%d/%m/%Y')}"
-    )
-
-    _footer(c, pagina)
-    c.save()
-
-# ======================================================
-# PDF TÉCNICO (RESTURADO)
-# ======================================================
-
-def gerar_pdf_tecnico(
-    caminho_pdf,
-    cargos,
-    clt_detalhado,
-    das_total,
-    lucro,
-    das_detalhado
-):
-    c = canvas.Canvas(caminho_pdf, pagesize=A4)
-    pagina = 1
-
-    y = _cabecalho(
-        c,
-        "PROPOSTA TÉCNICA",
-        "Memória de Cálculo – Custos, Encargos e Tributos"
-    )
-
-    c.setFont("Helvetica-Bold", 13)
-    c.drawString(MARGEM_ESQ, y, "Custos por Cargo")
-    y -= LEADING_TITULO / 2
-
-    for cargo in cargos:
-        linha = (
-            f"{cargo['Cargo']} | "
-            f"Qtd: {cargo['Quantidade']} | "
-            f"Salário Base: {_brl(cargo['Salário Base'])} | "
-            f"Custo Unitário: {_brl(cargo['Custo Unitário'])}"
-        )
-        y, pagina = _draw_texto_paginado(
-            c, linha, y, pagina,
-            "PROPOSTA TÉCNICA",
-            "Memória de Cálculo – Custos, Encargos e Tributos",
-            size=10
-        )
-
-    c.setFont("Helvetica-Bold", 13)
-    c.drawString(MARGEM_ESQ, y, "Encargos CLT Consolidados")
-    y -= LEADING_TITULO / 2
-
-    for nome, valor in clt_detalhado.items():
-        y, pagina = _draw_texto_paginado(
-            c, f"{nome}: {_brl(valor)}",
-            y, pagina,
-            "PROPOSTA TÉCNICA",
-            "Memória de Cálculo – Custos, Encargos e Tributos",
-            size=10
-        )
-
-    c.setFont("Helvetica-Bold", 13)
-    c.drawString(MARGEM_ESQ, y, "Resultado Final")
-    y -= LEADING_TITULO / 2
-
-    y, pagina = _draw_texto_paginado(
-        c, f"Lucro Mensal: {_brl(lucro)}",
-        y, pagina,
-        "PROPOSTA TÉCNICA",
-        "Memória de Cálculo – Custos, Encargos e Tributos"
+        f"{cliente} | {date.today().strftime('%d/%m/%Y')}",
+        font=FONT_TEXTO, size=SIZE_TEXTO
     )
 
     _footer(c, pagina)
