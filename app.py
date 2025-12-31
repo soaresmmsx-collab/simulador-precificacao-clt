@@ -61,7 +61,7 @@ das = preco_nf * aliq
 # --- TABELA DETALHADA ---
 st.subheader("📊 Custos detalhados por cargo")
 df = pd.DataFrame(tabela_cargos)
-st.dataframe(df.style.format("R$ {:,.2f}"))
+st.dataframe(df)
 
 # --- EXPORTAÇÃO ---
 st.subheader("📤 Exportar tabela")
