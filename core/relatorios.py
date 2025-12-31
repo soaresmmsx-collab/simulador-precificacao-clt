@@ -78,16 +78,9 @@ def _cabecalho(c, titulo, subtitulo):
     if linha:
         c.drawRightString(A4[0] - MARGEM_DIR, y, linha.strip())
 
-    # linha separadora (mais baixa)
-    c.line(
-        MARGEM_ESQ,
-        y - 18,
-        largura - MARGEM_DIR,
-        y - 18
-    )
     
     # retorno com mais respiro para o corpo do texto
-    return y - 50
+    return y 
 
 
 # ================= TEXTO =================
@@ -186,7 +179,13 @@ def gerar_proposta_comercial_pdf(
     
     # >>> ESPAÇO ENTRE TÍTULO DA PROPOSTA E RESUMO EXECUTIVO <<<
     y -= 24  # ajuste fino (pode ser 20–30)
-    
+
+    # linha separadora (agora alinhada ao corpo)
+    c.line(MARGEM_ESQ, y, A4[0] - MARGEM_DIR, y)
+
+    # espaço entre linha e corpo
+    y -= 20
+
     y, pagina = _draw_texto(
         c, resumo, y, pagina,
         "PROPOSTA COMERCIAL", cliente
