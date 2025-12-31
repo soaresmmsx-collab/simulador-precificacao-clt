@@ -175,8 +175,10 @@ if st.button("📄 Gerar Proposta TÉCNICA (PDF)"):
         tabela_cargos,
         total_clt_detalhado,
         brl(das),
-        brl(lucro)
+        brl(lucro),
+        {k: brl(v) for k, v in das_detalhado.items()}
     )
+
 
     with open("proposta_tecnica.pdf", "rb") as f:
         st.download_button(
