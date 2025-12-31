@@ -48,30 +48,68 @@ def _verificar_pagina(c, y, pagina):
     if y < 4 * cm:
         _footer(c, pagina)
         c.showPage()
-        return A4[1] - 3 * cm, pagina + 1
+        return A4[1] - 4 * cm, pagina + 1
     return y, pagina
 
 
-def _desenhar_logo(c):
+# ======================================================
+# CABEÇALHO PADRÃO (ÚNICO)
+# ======================================================
+
+def _desenhar_cabecalho_padrao(c, titulo_principal, subtitulo):
+    """
+    Cabeçalho profissional padronizado para todos os relatórios
+    """
+    largura, altura = A4
+
+    margem_esq = 2.5 * cm
+    margem_dir = 2.5 * cm
+
+    # Logo
     base_dir = os.path.dirname(os.path.abspath(__file__))
     caminho_logo = os.path.normpath(
         os.path.join(base_dir, "..", "assets", "logo.png")
     )
 
-    if not os.path.exists(caminho_logo):
-        raise FileNotFoundError(f"Logo não encontrada em: {caminho_logo}")
+    if os.path.exists(caminho_logo):
+        logo = ImageReader(caminho_logo)
+        c.drawImage(
+            logo,
+            margem_esq,
+            altura - 3.2 * cm,
+            width=3.5 * cm,
+            height=3.5 * cm,
+            preserveAspectRatio=True,
+            mask="auto"
+        )
 
-    logo = ImageReader(caminho_logo)
-
-    c.drawImage(
-        logo,
-        2.5 * cm,
-        A4[1] - 4 * cm,
-        width=4 * cm,
-        height=4 * cm,
-        preserveAspectRatio=True,
-        mask="auto"
+    # Título principal
+    c.setFont("Helvetica-Bold", 16)
+    c.drawRightString(
+        largura - margem_dir,
+        altura - 2.2 * cm,
+        titulo_principal
     )
+
+    # Subtítulo
+    c.setFont("Helvetica", 11)
+    c.drawRightString(
+        largura - margem_dir,
+        altura - 2.9 * cm,
+        subtitulo
+    )
+
+    # Linha divisória
+    c.setLineWidth(0.6)
+    c.line(
+        margem_esq,
+        altura - 3.7 * cm,
+        largura - margem_dir,
+        altura - 3.7 * cm
+    )
+
+    # Retorna Y inicial do conteúdo
+    return altura - 4.5 * cm
 
 
 # ======================================================
@@ -90,52 +128,37 @@ def gerar_proposta_comercial_pdf(
     cargos
 ):
     c = canvas.Canvas(caminho_pdf, pagesize=A4)
-    largura, altura = A4
-
-    margem_esq = 2.5 * cm
-    margem_dir = 2.5 * cm
-    largura_texto = largura - margem_esq - margem_dir
-
     pagina = 1
-    y = altura - 3 * cm
 
-    # LOGO
-    _desenhar_logo(c)
+    largura_texto = A4[0] - (2 * 2.5 * cm)
 
-    # CABEÇALHO
-    c.setFont("Helvetica-Bold", 16)
-    c.drawRightString(largura - margem_dir, altura - 2 * cm, "PROPOSTA COMERCIAL")
-
-    c.setFont("Helvetica", 10)
-    c.drawRightString(largura - margem_dir, altura - 2.7 * cm, f"Cliente: {cliente}")
-    c.drawRightString(
-        largura - margem_dir,
-        altura - 3.2 * cm,
-        f"Data: {date.today().strftime('%d/%m/%Y')} | Validade: {validade}"
+    y = _desenhar_cabecalho_padrao(
+        c,
+        "PROPOSTA COMERCIAL",
+        f"Cliente: {cliente} | Validade: {validade}"
     )
 
-    y -= 2 * cm
-
-    # TÍTULO
+    # Título da proposta
     y = _draw_paragraph(
-        c, titulo, margem_esq, y, largura_texto,
+        c, titulo, 2.5 * cm, y, largura_texto,
         font="Helvetica-Bold", size=12, leading=16
-    ) - 20
+    )
+    y -= 20
 
-    # TEXTO INSTITUCIONAL
-    y = _draw_paragraph(c, texto_institucional, margem_esq, y, largura_texto)
+    # Texto institucional
+    y = _draw_paragraph(c, texto_institucional, 2.5 * cm, y, largura_texto)
     y -= 15
     y, pagina = _verificar_pagina(c, y, pagina)
 
-    # TEXTO COMERCIAL
-    y = _draw_paragraph(c, texto_comercial, margem_esq, y, largura_texto)
+    # Texto comercial
+    y = _draw_paragraph(c, texto_comercial, 2.5 * cm, y, largura_texto)
     y -= 20
     y, pagina = _verificar_pagina(c, y, pagina)
 
-    # ESCOPO
+    # Escopo
     y = _draw_paragraph(
         c, "Escopo de Alocação:",
-        margem_esq, y, largura_texto,
+        2.5 * cm, y, largura_texto,
         font="Helvetica-Bold", size=11
     )
 
@@ -143,40 +166,25 @@ def gerar_proposta_comercial_pdf(
         y = _draw_paragraph(
             c,
             f"- {cargo['Cargo']} (Quantidade: {cargo['Quantidade']})",
-            margem_esq,
+            2.5 * cm,
             y,
             largura_texto
         )
         y, pagina = _verificar_pagina(c, y, pagina)
 
-    # RESUMO COMERCIAL (VALORES)
+    # Resumo Comercial
     y -= 20
     y, pagina = _verificar_pagina(c, y, pagina)
 
     c.setFont("Helvetica-Bold", 11)
-    c.drawString(margem_esq, y, "Resumo Comercial")
+    c.drawString(2.5 * cm, y, "Resumo Comercial")
     y -= 10
 
-    c.rect(
-        margem_esq,
-        y - 50,
-        largura_texto,
-        50,
-        stroke=1,
-        fill=0
-    )
+    c.rect(2.5 * cm, y - 50, largura_texto, 50, stroke=1, fill=0)
 
     c.setFont("Helvetica-Bold", 10)
-    c.drawString(
-        margem_esq + 10,
-        y - 20,
-        f"Valor mensal da proposta: {valor_nf}"
-    )
-    c.drawString(
-        margem_esq + 10,
-        y - 38,
-        f"Margem aplicada: {margem}"
-    )
+    c.drawString(2.5 * cm + 10, y - 20, f"Valor mensal da proposta: {valor_nf}")
+    c.drawString(2.5 * cm + 10, y - 38, f"Margem aplicada: {margem}")
 
     _footer(c, pagina)
     c.save()
@@ -195,29 +203,20 @@ def gerar_pdf_tecnico(
     das_detalhado
 ):
     c = canvas.Canvas(caminho_pdf, pagesize=A4)
-    largura, altura = A4
-
-    margem_esq = 2.5 * cm
-    margem_dir = 2.5 * cm
-    largura_texto = largura - margem_esq - margem_dir
-
     pagina = 1
-    y = altura - 3 * cm
 
-    _desenhar_logo(c)
+    largura_texto = A4[0] - (2 * 2.5 * cm)
 
-    y = _draw_paragraph(
+    y = _desenhar_cabecalho_padrao(
         c,
-        "PROPOSTA TÉCNICA – MEMÓRIA DE CÁLCULO",
-        margem_esq, y, largura_texto,
-        font="Helvetica-Bold", size=14, leading=18
+        "PROPOSTA TÉCNICA",
+        "Memória de Cálculo – Custos, Encargos e Tributos"
     )
 
-    # CARGOS
-    y -= 20
+    # Cargos
     y = _draw_paragraph(
         c, "1. Custos por Cargo",
-        margem_esq, y, largura_texto,
+        2.5 * cm, y, largura_texto,
         font="Helvetica-Bold", size=11
     )
 
@@ -227,54 +226,56 @@ def gerar_pdf_tecnico(
             f"{cargo['Cargo']} | Qtd: {cargo['Quantidade']} | "
             f"Salário Base: {cargo['Salário Base']} | "
             f"Custo Unitário: {cargo['Custo Unitário']}",
-            margem_esq, y, largura_texto
+            2.5 * cm,
+            y,
+            largura_texto
         )
         y, pagina = _verificar_pagina(c, y, pagina)
 
-    # CLT
+    # Encargos CLT
     y -= 20
     y = _draw_paragraph(
         c, "2. Encargos CLT Consolidados",
-        margem_esq, y, largura_texto,
+        2.5 * cm, y, largura_texto,
         font="Helvetica-Bold", size=11
     )
 
     for nome, valor in clt_detalhado.items():
-        y = _draw_paragraph(c, f"{nome}: {valor}", margem_esq, y, largura_texto)
+        y = _draw_paragraph(c, f"{nome}: {valor}", 2.5 * cm, y, largura_texto)
         y, pagina = _verificar_pagina(c, y, pagina)
 
     # DAS
     y -= 20
     y = _draw_paragraph(
         c, "3. Simples Nacional – DAS",
-        margem_esq, y, largura_texto,
+        2.5 * cm, y, largura_texto,
         font="Helvetica-Bold", size=11
     )
 
-    y = _draw_paragraph(c, f"DAS Total Mensal: {das_total}", margem_esq, y, largura_texto)
+    y = _draw_paragraph(c, f"DAS Total Mensal: {das_total}", 2.5 * cm, y, largura_texto)
     y, pagina = _verificar_pagina(c, y, pagina)
 
-    # DAS DETALHADO
+    # DAS detalhado
     y -= 10
     y = _draw_paragraph(
         c, "4. DAS – Detalhamento por Tributo",
-        margem_esq, y, largura_texto,
+        2.5 * cm, y, largura_texto,
         font="Helvetica-Bold", size=11
     )
 
     for tributo, valor in das_detalhado.items():
-        y = _draw_paragraph(c, f"{tributo}: {valor}", margem_esq, y, largura_texto)
+        y = _draw_paragraph(c, f"{tributo}: {valor}", 2.5 * cm, y, largura_texto)
         y, pagina = _verificar_pagina(c, y, pagina)
 
-    # RESULTADO
+    # Resultado
     y -= 20
     y = _draw_paragraph(
         c, "5. Resultado Final",
-        margem_esq, y, largura_texto,
+        2.5 * cm, y, largura_texto,
         font="Helvetica-Bold", size=11
     )
 
-    y = _draw_paragraph(c, f"Lucro Mensal: {lucro}", margem_esq, y, largura_texto)
+    y = _draw_paragraph(c, f"Lucro Mensal: {lucro}", 2.5 * cm, y, largura_texto)
 
     _footer(c, pagina)
     c.save()
