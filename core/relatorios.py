@@ -1,9 +1,20 @@
+import os
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import cm
+from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase.pdfmetrics import stringWidth
-from datetime import date
-import os
+
+def carregar_logo(caminho_relativo):
+    caminho_absoluto = os.path.join(os.getcwd(), caminho_relativo)
+
+    if not os.path.exists(caminho_absoluto):
+        return None
+
+    try:
+        return ImageReader(caminho_absoluto)
+    except Exception:
+        return None
 
 def draw_paragraph(c, text, x, y, max_width, leading=14):
     textobject = c.beginText()
@@ -58,15 +69,18 @@ def gerar_proposta_comercial_pdf(
     y = altura - 3 * cm
 
     # LOGO
-    if os.path.exists(logo_path):
+    logo = carregar_logo(logo_path)
+
+    if logo:
         c.drawImage(
-            logo_path,
+            logo,
             margem_esq,
-            altura - 2.5 * cm,
+            altura - 2.8 * cm,
             width=4 * cm,
             preserveAspectRatio=True,
             mask="auto"
         )
+
 
     # CABEÇALHO
     c.setFont("Helvetica-Bold", 16)
@@ -155,6 +169,18 @@ def gerar_pdf_tecnico(
     lucro,
     das_detalhado
 ):
+    logo = carregar_logo("assets/logo_jtalent.jpg")
+
+    if logo:
+        c.drawImage(
+            logo,
+            margem_esq,
+            altura - 2.8 * cm,
+            width=4 * cm,
+            preserveAspectRatio=True,
+            mask="auto"
+        )
+
     c = canvas.Canvas(caminho_pdf, pagesize=A4)
     largura, altura = A4
 
