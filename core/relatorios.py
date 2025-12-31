@@ -1,5 +1,6 @@
 import os
 from datetime import date
+
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import cm
@@ -21,12 +22,18 @@ FONT_TITULO = "Helvetica-Bold"
 SIZE_TEXTO = 11
 SIZE_TITULO = 14
 
-LEADING = 18            # ~1,5
-ESPACO_PARAGRAFO = 6    # espaço reduzido entre parágrafos
+LEADING = 18            # ~1,5x
+ESPACO_PARAGRAFO = 6    # espaço controlado entre parágrafos
 
 # ======================================================
 # UTILIDADES
 # ======================================================
+
+def _brl(valor):
+    try:
+        return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    except Exception:
+        return str(valor)
 
 def _footer(c, pagina):
     c.setFont("Helvetica-Oblique", 8)
@@ -72,6 +79,20 @@ def _nova_pagina(c, pagina, titulo, subtitulo):
 # TEXTO JUSTIFICADO + PAGINAÇÃO PREVENTIVA
 # ======================================================
 
+def _draw_linha_justificada(c, palavras, y, font, size):
+    if len(palavras) == 1:
+        c.drawString(MARGEM_ESQ, y, palavras[0])
+        return
+
+    largura_palavras = sum(stringWidth(p, font, size) for p in palavras)
+    espaco_total = LARGURA_TEXTO - largura_palavras
+    espaco = espaco_total / (len(palavras) - 1)
+
+    x = MARGEM_ESQ
+    for p in palavras:
+        c.drawString(x, y, p)
+        x += stringWidth(p, font, size) + espaco
+
 def _draw_texto_justificado(
     c, texto, y, pagina, titulo, subtitulo,
     font=FONT_TEXTO, size=SIZE_TEXTO, leading=LEADING
@@ -109,33 +130,26 @@ def _draw_texto_justificado(
 
     return y, pagina
 
-def _draw_linha_justificada(c, palavras, y, font, size):
-    if len(palavras) == 1:
-        c.drawString(MARGEM_ESQ, y, palavras[0])
-        return
-
-    largura_palavras = sum(stringWidth(p, font, size) for p in palavras)
-    espaco_total = LARGURA_TEXTO - largura_palavras
-    espaco = espaco_total / (len(palavras) - 1)
-
-    x = MARGEM_ESQ
-    for p in palavras:
-        c.drawString(x, y, p)
-        x += stringWidth(p, font, size) + espaco
-
 # ======================================================
 # PDF COMERCIAL
 # ======================================================
 
 def gerar_proposta_comercial_pdf(
-    caminho, cliente, titulo, resumo_executivo,
-    texto_institucional, texto_comercial,
-    validade, valor_nf, margem, cargos
+    caminho,
+    cliente,
+    titulo,
+    resumo_executivo,
+    texto_institucional,
+    texto_comercial,
+    validade,
+    valor_nf,
+    margem,
+    cargos
 ):
     c = canvas.Canvas(caminho, pagesize=A4)
     pagina = 1
 
-    # CAPA
+    # CAPA EXECUTIVA
     y = _cabecalho(c, "PROPOSTA EXECUTIVA", f"{cliente} | Validade: {validade}")
 
     c.setFont(FONT_TITULO, SIZE_TITULO)
@@ -153,7 +167,7 @@ def gerar_proposta_comercial_pdf(
 
     _footer(c, pagina)
 
-    # COMERCIAL
+    # PROPOSTA COMERCIAL
     y, pagina = _nova_pagina(
         c, pagina,
         "PROPOSTA COMERCIAL",
@@ -191,8 +205,71 @@ def gerar_proposta_comercial_pdf(
     y, pagina = _draw_texto_justificado(
         c, assinatura, y, pagina,
         "PROPOSTA COMERCIAL",
-        f"{cliente} | {date.today().strftime('%d/%m/%Y')}",
-        font=FONT_TEXTO, size=SIZE_TEXTO
+        f"{cliente} | {date.today().strftime('%d/%m/%Y')}"
+    )
+
+    _footer(c, pagina)
+    c.save()
+
+# ======================================================
+# PDF TÉCNICO (OBRIGATÓRIO – NÃO REMOVER)
+# ======================================================
+
+def gerar_pdf_tecnico(
+    caminho_pdf,
+    cargos,
+    clt_detalhado,
+    das_total,
+    lucro,
+    das_detalhado
+):
+    c = canvas.Canvas(caminho_pdf, pagesize=A4)
+    pagina = 1
+
+    y = _cabecalho(
+        c,
+        "PROPOSTA TÉCNICA",
+        "Memória de Cálculo – Custos, Encargos e Tributos"
+    )
+
+    c.setFont(FONT_TITULO, SIZE_TITULO)
+    c.drawString(MARGEM_ESQ, y, "Custos por Cargo")
+    y -= LEADING
+
+    for cargo in cargos:
+        linha = (
+            f"{cargo['Cargo']} | "
+            f"Qtd: {cargo['Quantidade']} | "
+            f"Salário Base: {_brl(cargo['Salário Base'])} | "
+            f"Custo Unitário: {_brl(cargo['Custo Unitário'])}"
+        )
+        y, pagina = _draw_texto_justificado(
+            c, linha, y, pagina,
+            "PROPOSTA TÉCNICA",
+            "Memória de Cálculo – Custos, Encargos e Tributos"
+        )
+
+    c.setFont(FONT_TITULO, SIZE_TITULO)
+    c.drawString(MARGEM_ESQ, y, "Encargos CLT Consolidados")
+    y -= LEADING
+
+    for nome, valor in clt_detalhado.items():
+        y, pagina = _draw_texto_justificado(
+            c, f"{nome}: {_brl(valor)}",
+            y, pagina,
+            "PROPOSTA TÉCNICA",
+            "Memória de Cálculo – Custos, Encargos e Tributos"
+        )
+
+    c.setFont(FONT_TITULO, SIZE_TITULO)
+    c.drawString(MARGEM_ESQ, y, "Resultado Final")
+    y -= LEADING
+
+    y, pagina = _draw_texto_justificado(
+        c, f"Lucro Mensal: {_brl(lucro)}",
+        y, pagina,
+        "PROPOSTA TÉCNICA",
+        "Memória de Cálculo – Custos, Encargos e Tributos"
     )
 
     _footer(c, pagina)
