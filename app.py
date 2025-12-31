@@ -11,10 +11,7 @@ from core.clt import calcular_clt
 from core.precificacao import precificar
 from core.simples import fator_r, anexo, aliquota, detalhar_das
 from core.utils import brl
-from core.relatorios import (
-    gerar_proposta_comercial_pdf,
-    gerar_pdf_tecnico
-)
+from core.relatorios import gerar_proposta_comercial_pdf, gerar_pdf_tecnico
 
 # =========================
 # LOGIN
