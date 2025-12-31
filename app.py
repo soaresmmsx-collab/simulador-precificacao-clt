@@ -165,12 +165,19 @@ for tributo, valor in das_detalhado.items():
 # ======================================================
 st.subheader("📄 Propostas em PDF")
 
+from core.relatorios import gerar_proposta_comercial_pdf
+
 if st.button("📄 Gerar Proposta COMERCIAL (PDF)"):
-    gerar_pdf_comercial(
-        "proposta_comercial.pdf",
-        brl(preco_nf),
-        f"{margem * 100:.2f}%",
-        tabela_cargos
+    gerar_proposta_comercial_pdf(
+        caminho_pdf="proposta_comercial.pdf",
+        logo_path="assets/logo_jtalent.jpg",
+        cliente=cliente,
+        titulo=titulo_proposta,
+        descricao=descricao_proposta,
+        validade=validade,
+        valor_nf=brl(preco_nf),
+        margem=f"{margem*100:.2f}%",
+        cargos=tabela_cargos
     )
 
     with open("proposta_comercial.pdf", "rb") as f:
@@ -180,6 +187,7 @@ if st.button("📄 Gerar Proposta COMERCIAL (PDF)"):
             "proposta_comercial.pdf",
             "application/pdf"
         )
+
 
 if st.button("📄 Gerar Proposta TÉCNICA (PDF)"):
     gerar_pdf_tecnico(
