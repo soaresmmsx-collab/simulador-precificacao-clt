@@ -127,10 +127,22 @@ contexto = st.text_area(
 
 x1, x2 = st.columns(2)
 if x1.button("Gerar Resumo Executivo"):
-    st.session_state.resumo_exec = gerar_resumo_executivo(contexto)
+    try:
+        st.session_state.resumo_exec = gerar_resumo_executivo(contexto)
+    except TypeError:
+        # fallback para outras assinaturas possíveis
+        st.session_state.resumo_exec = gerar_resumo_executivo(
+            contexto=contexto
+        )
 
 if x2.button("Gerar Texto Comercial"):
-    st.session_state.texto_comercial = gerar_texto_comercial(contexto)
+    try:
+        st.session_state.texto_comercial = gerar_texto_comercial(contexto)
+    except TypeError:
+        st.session_state.texto_comercial = gerar_texto_comercial(
+            contexto=contexto
+        )
+
 
 resumo_exec = st.text_area(
     "Resumo Executivo (editável)",
