@@ -57,7 +57,7 @@ def _cabecalho(c, titulo, subtitulo):
 
     y = altura - 2.5 * cm
 
-    # Título fixo (direita)
+    # Título fixo
     c.setFont(FONT_TITULO, SIZE_TITULO_GRANDE)
     c.drawRightString(A4[0] - MARGEM_DIR, y, titulo)
     y -= 18
@@ -66,7 +66,6 @@ def _cabecalho(c, titulo, subtitulo):
     c.setFont(FONT_TEXTO, 11)
     palavras = subtitulo.split()
     linha = ""
-
     for p in palavras:
         teste = linha + p + " "
         if stringWidth(teste, FONT_TEXTO, 11) <= (A4[0] - MARGEM_DIR - MARGEM_ESQ - 4.5 * cm):
@@ -75,7 +74,6 @@ def _cabecalho(c, titulo, subtitulo):
             c.drawRightString(A4[0] - MARGEM_DIR, y, linha.strip())
             y -= 14
             linha = p + " "
-
     if linha:
         c.drawRightString(A4[0] - MARGEM_DIR, y, linha.strip())
 
@@ -112,7 +110,6 @@ def _draw_texto(c, texto, y, pagina, titulo, subtitulo):
             c.setFont(FONT_TITULO, SIZE_TITULO)
             palavras = titulo_txt.split()
             linha = ""
-
             for p in palavras:
                 teste = linha + p + " "
                 if stringWidth(teste, FONT_TITULO, SIZE_TITULO) <= LARGURA_TEXTO:
@@ -121,7 +118,6 @@ def _draw_texto(c, texto, y, pagina, titulo, subtitulo):
                     c.drawString(MARGEM_ESQ, y, linha.strip())
                     y -= LEADING
                     linha = p + " "
-
             if linha:
                 c.drawString(MARGEM_ESQ, y, linha.strip())
                 y -= LEADING
@@ -129,7 +125,7 @@ def _draw_texto(c, texto, y, pagina, titulo, subtitulo):
             c.setFont(FONT_TEXTO, SIZE_TEXTO)
             continue
 
-        # ===== TEXTO CORRIDO (JUSTIFICADO) =====
+        # ===== TEXTO CORRIDO JUSTIFICADO =====
         palavras = linha_raw.split()
         linha = []
         largura = 0
@@ -168,7 +164,11 @@ def gerar_proposta_comercial_pdf(
 
     y = _cabecalho(c, "PROPOSTA COMERCIAL", f"{cliente} | Validade: {validade}")
 
-    y, pagina = _draw_texto(c, f"**{titulo_proposta}**", y, pagina, "PROPOSTA COMERCIAL", cliente)
+    y, pagina = _draw_texto(
+        c, f"**{titulo_proposta}**", y, pagina,
+        "PROPOSTA COMERCIAL", cliente
+    )
+
     y, pagina = _draw_texto(c, resumo, y, pagina, "PROPOSTA COMERCIAL", cliente)
 
     c.setFont(FONT_TITULO, 18)
@@ -191,5 +191,49 @@ def gerar_proposta_comercial_pdf(
     )
 
     y, pagina = _draw_texto(c, assinatura, y, pagina, "PROPOSTA COMERCIAL", cliente)
+    _footer(c, pagina)
+    c.save()
+
+# ================= PROPOSTA TÉCNICA =================
+
+def gerar_pdf_tecnico(
+    caminho_pdf, cargos, clt_detalhado, das_total, lucro, das_detalhado
+):
+    c = canvas.Canvas(caminho_pdf, pagesize=A4)
+    pagina = 1
+
+    y = _cabecalho(
+        c,
+        "PROPOSTA TÉCNICA",
+        "Memória de Cálculo – Custos, Encargos e Tributos"
+    )
+
+    y, pagina = _draw_texto(
+        c, "**Custos por Cargo**", y, pagina,
+        "PROPOSTA TÉCNICA",
+        "Memória de Cálculo – Custos, Encargos e Tributos"
+    )
+
+    for cargo in cargos:
+        linha = (
+            f"{cargo['Cargo']} | "
+            f"Qtd: {cargo['Quantidade']} | "
+            f"Salário Base: {cargo['Salário']}"
+        )
+        y, pagina = _draw_texto(
+            c, linha, y, pagina,
+            "PROPOSTA TÉCNICA",
+            "Memória de Cálculo – Custos, Encargos e Tributos"
+        )
+
+    y, pagina = _draw_texto(
+        c,
+        f"**Lucro Mensal: R$ {lucro:,.2f}**",
+        y,
+        pagina,
+        "PROPOSTA TÉCNICA",
+        "Memória de Cálculo – Custos, Encargos e Tributos"
+    )
+
     _footer(c, pagina)
     c.save()
