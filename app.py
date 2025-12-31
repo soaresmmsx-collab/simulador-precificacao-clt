@@ -12,8 +12,8 @@ from core.simples import anexo
 from core.simples import aliquota
 from core.simples import detalhar_das
 from core.utils import brl
-from core.relatorios import gerar_proposta_comercial_pdf
-from core.relatorios import gerar_pdf_tecnico
+#from core.relatorios import gerar_proposta_comercial_pdf
+#from core.relatorios import gerar_pdf_tecnico
 
 # ===== LOGIN =====
 if "logged" not in st.session_state:
