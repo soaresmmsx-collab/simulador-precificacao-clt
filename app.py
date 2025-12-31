@@ -59,20 +59,7 @@ if not st.session_state.get("logged", False):
 
 st.title("📊 Simulador de Precificação CLT")
 
-# =====================================================
-# WRAPPER DEFENSIVO PARA IA (CORREÇÃO DEFINITIVA)
-# =====================================================
-def chamar_ia(func, contexto):
-    try:
-        return func(contexto)
-    except TypeError:
-        try:
-            return func(contexto=contexto)
-        except TypeError:
-            try:
-                return func()
-            except Exception as e:
-                return f"Erro ao gerar texto via IA: {e}"
+TOM_PADRAO = "executivo, comercial, voltado ao setor farmacêutico"
 
 # =====================================================
 # 1️⃣ IDENTIFICAÇÃO
@@ -146,16 +133,18 @@ contexto = st.text_area(
 
 x1, x2 = st.columns(2)
 if x1.button("Gerar Resumo Executivo"):
-    st.session_state.resumo_exec = chamar_ia(
-        gerar_resumo_executivo,
-        contexto
+    st.session_state.resumo_exec = gerar_resumo_executivo(
+        contexto,
+        TOM_PADRAO
     )
 
+
 if x2.button("Gerar Texto Comercial"):
-    st.session_state.texto_comercial = chamar_ia(
-        gerar_texto_comercial,
-        contexto
+    st.session_state.texto_comercial = gerar_texto_comercial(
+        contexto,
+        TOM_PADRAO
     )
+
 
 # =====================================================
 # RESUMO EXECUTIVO
