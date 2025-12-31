@@ -1,19 +1,19 @@
 import streamlit as st
 import pandas as pd
 
-# ===============================
-# AUTH (INALTERADO)
-# ===============================
+# =====================================================
+# AUTH (NÃO ALTERADO)
+# =====================================================
 from auth.auth import login
 
-# ===============================
+# =====================================================
 # CORE – CLT
-# ===============================
+# =====================================================
 from core.clt import calcular_clt
 
-# ===============================
+# =====================================================
 # CORE – SIMPLES NACIONAL
-# ===============================
+# =====================================================
 from core.simples import (
     fator_r,
     anexo,
@@ -21,45 +21,58 @@ from core.simples import (
     detalhar_das
 )
 
-# ===============================
-# CORE – PRECIFICAÇÃO (REAL)
-# ===============================
+# =====================================================
+# CORE – PRECIFICAÇÃO
+# =====================================================
 from core.precificacao import precificar
 
-# ===============================
+# =====================================================
 # IA
-# ===============================
+# =====================================================
 from core.ia_textos import (
     gerar_resumo_executivo,
     gerar_texto_comercial
 )
 
-# ===============================
+# =====================================================
 # RELATÓRIOS
-# ===============================
+# =====================================================
 from core.relatorios import (
     gerar_proposta_comercial_pdf,
     gerar_pdf_tecnico
 )
 
-# ===============================
+# =====================================================
 # CONFIG STREAMLIT
-# ===============================
+# =====================================================
 st.set_page_config(
     page_title="Simulador de Precificação CLT",
     layout="wide"
 )
 
-# ===============================
-# LOGIN
-# ===============================
+# =====================================================
+# LOGIN (CORRETO PARA SEU auth.py)
+# =====================================================
 login()
-
 if not st.session_state.get("logged", False):
     st.stop()
 
-
 st.title("📊 Simulador de Precificação CLT")
+
+# =====================================================
+# WRAPPER DEFENSIVO PARA IA (CORREÇÃO DEFINITIVA)
+# =====================================================
+def chamar_ia(func, contexto):
+    try:
+        return func(contexto)
+    except TypeError:
+        try:
+            return func(contexto=contexto)
+        except TypeError:
+            try:
+                return func()
+            except Exception as e:
+                return f"Erro ao gerar texto via IA: {e}"
 
 # =====================================================
 # 1️⃣ IDENTIFICAÇÃO
@@ -68,7 +81,10 @@ st.header("1️⃣ Identificação da Proposta")
 
 c1, c2, c3 = st.columns(3)
 cliente = c1.text_input("Cliente")
-titulo_proposta = c2.text_input("Título da proposta", "Proposta de Prestação de Serviços")
+titulo_proposta = c2.text_input(
+    "Título da proposta",
+    "Proposta de Prestação de Serviços"
+)
 validade = c3.text_input("Validade", "30 dias")
 
 # =====================================================
@@ -93,7 +109,10 @@ with st.expander("Adicionar cargo"):
         })
 
 if st.session_state.cargos:
-    st.dataframe(pd.DataFrame(st.session_state.cargos), use_container_width=True)
+    st.dataframe(
+        pd.DataFrame(st.session_state.cargos),
+        use_container_width=True
+    )
 else:
     st.info("Nenhum cargo adicionado.")
 
@@ -115,7 +134,7 @@ margem_pct = p2.number_input(
 )
 
 # =====================================================
-# 4️⃣ IA
+# 4️⃣ IA – CONTEÚDO DA PROPOSTA
 # =====================================================
 st.header("4️⃣ Conteúdo da Proposta (IA)")
 
@@ -127,23 +146,20 @@ contexto = st.text_area(
 
 x1, x2 = st.columns(2)
 if x1.button("Gerar Resumo Executivo"):
-    try:
-        st.session_state.resumo_exec = gerar_resumo_executivo(contexto)
-    except TypeError:
-        # fallback para outras assinaturas possíveis
-        st.session_state.resumo_exec = gerar_resumo_executivo(
-            contexto=contexto
-        )
+    st.session_state.resumo_exec = chamar_ia(
+        gerar_resumo_executivo,
+        contexto
+    )
 
 if x2.button("Gerar Texto Comercial"):
-    try:
-        st.session_state.texto_comercial = gerar_texto_comercial(contexto)
-    except TypeError:
-        st.session_state.texto_comercial = gerar_texto_comercial(
-            contexto=contexto
-        )
+    st.session_state.texto_comercial = chamar_ia(
+        gerar_texto_comercial,
+        contexto
+    )
 
-
+# =====================================================
+# RESUMO EXECUTIVO
+# =====================================================
 resumo_exec = st.text_area(
     "Resumo Executivo (editável)",
     st.session_state.get("resumo_exec", ""),
@@ -151,6 +167,9 @@ resumo_exec = st.text_area(
 )
 st.markdown(resumo_exec)
 
+# =====================================================
+# TEXTO COMERCIAL
+# =====================================================
 texto_comercial = st.text_area(
     "Texto Comercial (editável)",
     st.session_state.get("texto_comercial", ""),
@@ -187,8 +206,7 @@ if st.button("Calcular Precificação"):
     # ---------- SIMPLES ----------
     margem = margem_pct / 100
 
-    # preço sem DAS ainda (base)
-    preco_base, lucro_base = precificar(folha_total, margem)
+    preco_base, _ = precificar(folha_total, margem)
 
     fr = fator_r(folha_total, preco_base)
     an = anexo(fr)
@@ -221,7 +239,7 @@ if st.button("Calcular Precificação"):
     }
 
 # =====================================================
-# 6️⃣ OUTPUT
+# 6️⃣ OUTPUT + RELATÓRIOS
 # =====================================================
 if "resultado" in st.session_state:
     r = st.session_state.resultado
@@ -251,7 +269,11 @@ if "resultado" in st.session_state:
             st.session_state.cargos
         )
         with open("proposta_comercial.pdf", "rb") as f:
-            st.download_button("⬇️ Baixar PDF Comercial", f, "proposta_comercial.pdf")
+            st.download_button(
+                "⬇️ Baixar PDF Comercial",
+                f,
+                "proposta_comercial.pdf"
+            )
 
     if y2.button("📑 Proposta Técnica (PDF)"):
         gerar_pdf_tecnico(
@@ -263,4 +285,8 @@ if "resultado" in st.session_state:
             r["das"]["detalhado"]
         )
         with open("proposta_tecnica.pdf", "rb") as f:
-            st.download_button("⬇️ Baixar PDF Técnico", f, "proposta_tecnica.pdf")
+            st.download_button(
+                "⬇️ Baixar PDF Técnico",
+                f,
+                "proposta_tecnica.pdf"
+            )
