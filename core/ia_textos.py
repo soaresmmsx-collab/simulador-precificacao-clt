@@ -1,60 +1,89 @@
 import os
 
-def gerar_texto_comercial(contexto_bruto):
-    """
-    Gera texto comercial com IA (OpenAI).
-    Se a dependência ou a API Key não existirem,
-    retorna uma mensagem padrão sem quebrar o app.
-    """
+CONTEXTO_FARMACEUTICO = """
+Você redige propostas comerciais para empresas do setor farmacêutico.
+Essas empresas operam sob forte regulação, auditorias frequentes,
+exigência rigorosa de conformidade trabalhista, fiscal e tributária,
+e ambientes críticos que demandam alta confiabilidade operacional.
+"""
 
-    api_key = os.getenv("OPENAI_API_KEY")
+def _openai_disponivel():
+    return os.getenv("OPENAI_API_KEY") is not None
 
-    if not api_key:
+
+def gerar_resumo_executivo(contexto, tom):
+    if not _openai_disponivel():
         return (
-            "Texto não gerado automaticamente.\n\n"
-            "Motivo: API Key da OpenAI não configurada.\n"
-            "Você pode editar este texto manualmente."
+            "Resumo executivo não gerado automaticamente. "
+            "Motivo: API Key da OpenAI não configurada."
         )
 
     try:
         from openai import OpenAI
-    except ImportError:
+        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+        prompt = f"""
+        {CONTEXTO_FARMACEUTICO}
+
+        Gere um RESUMO EXECUTIVO curto (5 a 7 linhas) para uma proposta comercial.
+        Tom: {tom}.
+        Linguagem estratégica, clara e objetiva.
+        Não mencionar valores detalhados nem impostos.
+
+        Contexto da proposta:
+        {contexto}
+        """
+
+        resp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "Você é um consultor executivo sênior."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3
+        )
+
+        return resp.choices[0].message.content.strip()
+
+    except Exception as e:
+        return f"Erro ao gerar resumo executivo: {str(e)}"
+
+
+def gerar_texto_comercial(contexto, tom):
+    if not _openai_disponivel():
         return (
-            "Texto não gerado automaticamente.\n\n"
-            "Motivo: biblioteca OpenAI não instalada no ambiente.\n"
-            "Você pode editar este texto manualmente."
+            "Texto comercial não gerado automaticamente. "
+            "Motivo: API Key da OpenAI não configurada."
         )
 
     try:
-        client = OpenAI(api_key=api_key)
+        from openai import OpenAI
+        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
         prompt = f"""
-        Gere um texto comercial profissional para uma proposta de prestação de serviços.
-        Tom executivo, claro, objetivo e formal.
-        Não use jargões técnicos excessivos.
-        Não mencione impostos ou valores.
+        {CONTEXTO_FARMACEUTICO}
 
-        Contexto fornecido:
-        {contexto_bruto}
+        Gere um TEXTO COMERCIAL para proposta de prestação de serviços.
+        Tom: {tom}.
+        Público: áreas de compras, jurídico e gestão.
+        Enfatizar previsibilidade financeira, mitigação de riscos,
+        conformidade regulatória e eficiência operacional.
+        Não detalhar cálculos.
+
+        Contexto da proposta:
+        {contexto}
         """
 
-        response = client.chat.completions.create(
+        resp = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {
-                    "role": "system",
-                    "content": "Você é um especialista em propostas comerciais B2B."
-                },
+                {"role": "system", "content": "Você é um especialista em propostas B2B."},
                 {"role": "user", "content": prompt}
             ],
             temperature=0.4
         )
 
-        return response.choices[0].message.content.strip()
+        return resp.choices[0].message.content.strip()
 
     except Exception as e:
-        return (
-            "Erro ao gerar texto automaticamente.\n\n"
-            f"Detalhes: {str(e)}\n"
-            "Você pode editar este texto manualmente."
-        )
+        return f"Erro ao gerar texto comercial: {str(e)}"
