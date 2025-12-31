@@ -8,9 +8,9 @@ from core.utils import brl
 import pandas as pd
 
 if "logged" not in st.session_state:
-    st.session_state.logged = False
+    st.session_state["logged"] = False
 
-if not st.session_state.logged:
+if not st.session_state["logged"]:
     login()
     st.stop()
 
