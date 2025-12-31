@@ -5,16 +5,16 @@ USERS = {
     "max": "681fae29b727e172cd8605c3444ec059c2340c9ae5941a9e9ecc46c0081db7c8"
 }
 
-def _hash(password):
-    return hashlib.sha256(password.encode()).hexdigest()
+def _hash(p):
+    return hashlib.sha256(p.encode()).hexdigest()
 
 def login():
     st.title("🔐 Login")
-    user = st.text_input("Usuário")
-    password = st.text_input("Senha", type="password")
+    u = st.text_input("Usuário")
+    p = st.text_input("Senha", type="password")
 
     if st.button("Entrar"):
-        if user in USERS and USERS[user] == _hash(password):
+        if u in USERS and USERS[u] == _hash(p):
             st.session_state.logged = True
             st.experimental_rerun()
         else:
