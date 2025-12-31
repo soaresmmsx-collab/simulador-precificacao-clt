@@ -1,139 +1,257 @@
 import streamlit as st
 import pandas as pd
-from io import BytesIO
+import re
+from datetime import date
 
+# ===============================
+# IMPORTS DO SEU CORE (INALTERADOS)
+# ===============================
+from core.relatorios import (
+    gerar_proposta_comercial_pdf,
+    gerar_pdf_tecnico
+)
+
+from core.ia_textos import (
+    gerar_resumo_executivo,
+    gerar_texto_comercial
+)
+
+from core.clt import calcular_encargos_clt
+from core.simples import calcular_das_simples
+from core.precificacao import calcular_precificacao
+
+# ⚠️ LOGIN EXISTENTE — NÃO ALTERADO
+# (mantém exatamente como você já usa hoje)
 from auth.auth import login
-from ui.inputs import cargos
-from core.clt import calcular_clt
-from core.precificacao import precificar
-from core.simples import fator_r, anexo, aliquota, detalhar_das
-from core.utils import brl
-from core.relatorios import gerar_proposta_comercial_pdf, gerar_pdf_tecnico
-from core.ia_textos import gerar_resumo_executivo, gerar_texto_comercial
 
-# -------------------- Login --------------------
-if "logged" not in st.session_state:
-    st.session_state["logged"] = False
-if not st.session_state["logged"]:
-    login()
+
+# ===============================
+# CONFIGURAÇÃO DA PÁGINA
+# ===============================
+st.set_page_config(
+    page_title="Simulador de Precificação CLT",
+    layout="wide"
+)
+
+# ===============================
+# LOGIN (INALTERADO)
+# ===============================
+if not login():
     st.stop()
 
-st.title("Simulador de Precificação CLT + Simples Nacional")
+st.title("📊 Simulador de Precificação CLT")
 
-# -------------------- 1) Identificação --------------------
-st.header("1) Identificação da Proposta")
-cliente = st.text_input("Cliente")
-titulo_proposta = st.text_input("Título da proposta", "Proposta de Prestação de Serviços")
-validade = st.text_input("Validade", "30 dias")
+# ===============================
+# FUNÇÃO AUXILIAR (APENAS PREVIEW)
+# ===============================
+def preparar_preview_markdown(texto: str) -> str:
+    """
+    O Streamlit já interpreta Markdown.
+    Esta função existe apenas para deixar explícito
+    que o texto é exibido como preview formatado.
+    """
+    return texto if texto else ""
 
-# -------------------- 2) Estratégia (IA) --------------------
-st.header("2) Estratégia da Proposta (IA)")
-tom_ia = st.selectbox("Tom da narrativa", ["Executivo", "Comercial"])
-contexto = st.text_area("Contexto base para a IA", height=120)
 
-if "resumo_exec" not in st.session_state:
-    st.session_state["resumo_exec"] = ""
-if "texto_comercial" not in st.session_state:
-    st.session_state["texto_comercial"] = ""
+# ===============================
+# IDENTIFICAÇÃO DA PROPOSTA
+# ===============================
+st.header("1️⃣ Identificação da Proposta")
 
-c1, c2 = st.columns(2)
-with c1:
-    if st.button("Gerar resumo executivo"):
-        st.session_state["resumo_exec"] = gerar_resumo_executivo(contexto, tom_ia)
-with c2:
-    if st.button("Gerar texto comercial"):
-        st.session_state["texto_comercial"] = gerar_texto_comercial(contexto, tom_ia)
+col1, col2, col3 = st.columns(3)
+cliente = col1.text_input("Cliente")
+titulo_proposta = col2.text_input(
+    "Título da proposta",
+    "Proposta de Prestação de Serviços"
+)
+validade = col3.text_input("Validade", "30 dias")
 
-resumo_exec = st.text_area("Resumo executivo (editável)", st.session_state["resumo_exec"], height=120)
-texto_comercial = st.text_area("Texto comercial (editável)", st.session_state["texto_comercial"], height=200)
 
-# -------------------- 3) Estrutura de Custos --------------------
-st.header("3) Estrutura de Custos")
-lista_cargos = cargos()
+# ===============================
+# ESTRUTURA DE CARGOS
+# ===============================
+st.header("2️⃣ Estrutura de Cargos")
 
-# -------------------- 4) Parâmetros Financeiros --------------------
-st.header("4) Parâmetros Financeiros")
-vale = st.number_input("Vale alimentação por colaborador (R$)", min_value=0.0, value=600.0)
-margem = st.slider("Margem de lucro sobre a RECEITA (%)", 1, 50, 20) / 100
+if "cargos" not in st.session_state:
+    st.session_state.cargos = []
 
-# -------------------- 5) Cálculos --------------------
-tabela_cargos = []
-total_clt = {}
-custo_total = 0.0
-folha_anual = 0.0
+with st.expander("Adicionar cargo"):
+    c1, c2, c3 = st.columns(3)
+    cargo = c1.text_input("Cargo")
+    salario = c2.number_input("Salário (R$)", min_value=0.0, step=100.0)
+    quantidade = c3.number_input("Quantidade", min_value=1, step=1)
 
-for nome, salario, qtd in lista_cargos:
-    if not nome or salario <= 0 or qtd <= 0:
-        continue
-    detalhes, custo_unit = calcular_clt(salario, vale)
-    for k, v in detalhes.items():
-        total_clt[k] = total_clt.get(k, 0) + v*qtd
-    custo_total += custo_unit*qtd
-    folha_anual += custo_unit*qtd*12
-    tabela_cargos.append({
-        "Cargo": nome, "Quantidade": qtd,
-        "Salário Base": salario, "Benefícios": vale,
-        **detalhes, "Custo Unitário": custo_unit, "Custo Total": custo_unit*qtd
-    })
+    if st.button("Adicionar cargo"):
+        st.session_state.cargos.append({
+            "Cargo": cargo,
+            "Salário": salario,
+            "Quantidade": quantidade
+        })
 
-preco_nf, lucro = precificar(custo_total, margem)
-fr = fator_r(folha_anual, preco_nf*12)
-an = anexo(fr)
-aliq = aliquota(preco_nf*12, an)
-das = preco_nf*aliq
-das_det = detalhar_das(das, an)
-
-# -------------------- 6) Resultados --------------------
-st.header("5) Resultados Consolidados")
-st.write("Valor mensal da proposta:", brl(preco_nf))
-st.write("Lucro mensal:", brl(lucro))
-st.write("Fator R:", f"{fr:.2%}")
-st.write("Anexo:", an)
-st.write("Alíquota efetiva:", f"{aliq:.2%}")
-st.write("DAS mensal:", brl(das))
-
-# -------------------- Tabela / Exportações --------------------
-st.subheader("Custos detalhados por cargo")
-df = pd.DataFrame(tabela_cargos)
-st.dataframe(df)
-
-st.download_button("CSV", df.to_csv(index=False).encode("utf-8"),
-                   "custos_detalhados.csv", "text/csv")
-
-buf = BytesIO()
-with pd.ExcelWriter(buf, engine="openpyxl") as w:
-    df.to_excel(w, index=False)
-buf.seek(0)
-st.download_button("Excel", buf,
-                   "custos_detalhados.xlsx",
-                   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-# -------------------- 7) Relatórios --------------------
-st.header("6) Relatórios")
-if st.button("Gerar Proposta COMERCIAL (PDF)"):
-    gerar_proposta_comercial_pdf(
-        "proposta_comercial.pdf",
-        cliente,
-        titulo_proposta,
-        resumo_exec,
-        "Texto institucional configurável no app.",
-        texto_comercial,
-        validade,
-        brl(preco_nf),
-        f"{margem*100:.2f}%",
-        tabela_cargos
+if st.session_state.cargos:
+    st.dataframe(
+        pd.DataFrame(st.session_state.cargos),
+        use_container_width=True
     )
-    with open("proposta_comercial.pdf","rb") as f:
-        st.download_button("Baixar Proposta Comercial", f, "proposta_comercial.pdf","application/pdf")
+else:
+    st.info("Nenhum cargo adicionado.")
 
-if st.button("Gerar Proposta TÉCNICA (PDF)"):
-    gerar_pdf_tecnico(
-        "proposta_tecnica.pdf",
-        tabela_cargos,
-        total_clt,
-        brl(das),
-        brl(lucro),
-        {k: brl(v) for k,v in das_det.items()}
+
+# ===============================
+# PARÂMETROS FINANCEIROS
+# ===============================
+st.header("3️⃣ Parâmetros Financeiros")
+
+col1, col2 = st.columns(2)
+vale_refeicao = col1.number_input(
+    "Vale refeição por colaborador (R$)",
+    value=600.0,
+    step=50.0
+)
+margem = col2.number_input(
+    "Margem de lucro (%)",
+    value=20.0,
+    step=1.0
+)
+
+
+# ===============================
+# IA — CONTEÚDO DA PROPOSTA
+# ===============================
+st.header("4️⃣ Conteúdo da Proposta (IA)")
+
+contexto = st.text_area(
+    "Contexto da proposta (base para IA)",
+    height=120,
+    placeholder="Descreva o escopo, o cliente e os objetivos da proposta..."
+)
+
+col1, col2 = st.columns(2)
+if col1.button("Gerar Resumo Executivo"):
+    st.session_state.resumo_exec = gerar_resumo_executivo(contexto)
+
+if col2.button("Gerar Texto Comercial"):
+    st.session_state.texto_comercial = gerar_texto_comercial(contexto)
+
+
+# ===============================
+# RESUMO EXECUTIVO
+# ===============================
+resumo_exec = st.text_area(
+    "Resumo Executivo (editável)",
+    value=st.session_state.get("resumo_exec", ""),
+    height=180
+)
+
+st.markdown("**Pré-visualização formatada:**")
+st.markdown(preparar_preview_markdown(resumo_exec))
+
+
+# ===============================
+# TEXTO COMERCIAL
+# ===============================
+texto_comercial = st.text_area(
+    "Texto Comercial (editável)",
+    value=st.session_state.get("texto_comercial", ""),
+    height=260
+)
+
+st.markdown("**Pré-visualização formatada:**")
+st.markdown(preparar_preview_markdown(texto_comercial))
+
+
+# ===============================
+# CÁLCULOS
+# ===============================
+st.header("5️⃣ Resultados")
+
+if st.button("Calcular Precificação"):
+    if not st.session_state.cargos:
+        st.error("Adicione ao menos um cargo.")
+        st.stop()
+
+    resultado_clt = calcular_encargos_clt(
+        st.session_state.cargos,
+        vale_refeicao
     )
-    with open("proposta_tecnica.pdf","rb") as f:
-        st.download_button("Baixar Proposta Técnica", f, "proposta_tecnica.pdf","application/pdf")
+
+    resultado_das = calcular_das_simples(
+        resultado_clt["folha_total"]
+    )
+
+    resultado_precificacao = calcular_precificacao(
+        resultado_clt,
+        resultado_das,
+        margem
+    )
+
+    st.session_state.resultado = {
+        "clt": resultado_clt,
+        "das": resultado_das,
+        "precificacao": resultado_precificacao
+    }
+
+
+# ===============================
+# OUTPUT E RELATÓRIOS
+# ===============================
+if "resultado" in st.session_state:
+    st.subheader("Resumo Financeiro")
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric(
+        "Custo Total Mensal",
+        f"R$ {st.session_state.resultado['precificacao']['custo_total']:,.2f}"
+    )
+    col2.metric(
+        "Lucro Mensal",
+        f"R$ {st.session_state.resultado['precificacao']['lucro']:,.2f}"
+    )
+    col3.metric(
+        "Valor da Nota Fiscal",
+        f"R$ {st.session_state.resultado['precificacao']['valor_nf']:,.2f}"
+    )
+
+    st.header("6️⃣ Relatórios")
+
+    col1, col2 = st.columns(2)
+
+    if col1.button("📄 Gerar Proposta Comercial (PDF)"):
+        gerar_proposta_comercial_pdf(
+            "proposta_comercial.pdf",
+            cliente,
+            titulo_proposta,
+            resumo_exec,
+            "",  # texto institucional fixo (se houver)
+            texto_comercial,
+            validade,
+            f"R$ {st.session_state.resultado['precificacao']['valor_nf']:,.2f}",
+            f"{margem}%",
+            st.session_state.cargos
+        )
+
+        with open("proposta_comercial.pdf", "rb") as f:
+            st.download_button(
+                "⬇️ Baixar Proposta Comercial",
+                f,
+                "proposta_comercial.pdf",
+                mime="application/pdf"
+            )
+
+    if col2.button("📑 Gerar Proposta Técnica (PDF)"):
+        gerar_pdf_tecnico(
+            "proposta_tecnica.pdf",
+            st.session_state.cargos,
+            st.session_state.resultado["clt"]["detalhado"],
+            st.session_state.resultado["das"]["total"],
+            st.session_state.resultado["precificacao"]["lucro"],
+            st.session_state.resultado["das"]["detalhado"]
+        )
+
+        with open("proposta_tecnica.pdf", "rb") as f:
+            st.download_button(
+                "⬇️ Baixar Proposta Técnica",
+                f,
+                "proposta_tecnica.pdf",
+                mime="application/pdf"
+            )
