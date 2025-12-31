@@ -12,6 +12,13 @@ from reportlab.lib.utils import ImageReader
 # FUNÇÕES AUXILIARES
 # ======================================================
 
+def _verificar_pagina(c, y, pagina):
+    if y < 4 * cm:
+        _footer(c, pagina)
+        c.showPage()
+        return A4[1] - 3 * cm, pagina + 1
+    return y, pagina
+
 def _draw_paragraph(c, texto, x, y, largura_max, font="Helvetica", size=10, leading=14):
     c.setFont(font, size)
     textobject = c.beginText(x, y)
@@ -106,7 +113,11 @@ def gerar_proposta_comercial_pdf(
 
     y = _draw_paragraph(c, texto_institucional, margem_esq, y, largura_texto)
     y -= 15
+    y, pagina = _verificar_pagina(c, y, pagina)
+    
     y = _draw_paragraph(c, texto_comercial, margem_esq, y, largura_texto)
+    y, pagina = _verificar_pagina(c, y, pagina)
+
 
     y -= 20
     y = _draw_paragraph(
@@ -127,8 +138,28 @@ def gerar_proposta_comercial_pdf(
     y -= 20
     y = _draw_paragraph(
         c, "Condições Comerciais:",
-        margem_esq, y, largura_texto,
-        font="Helvetica-Bold", size=11
+        y -= 25
+        y, pagina = _verificar_pagina(c, y, pagina)
+        
+        c.setFont("Helvetica-Bold", 11)
+        c.drawString(margem_esq, y, "Resumo Comercial")
+        y -= 15
+        
+        # Caixa visual
+        c.rect(
+            margem_esq,
+            y - 45,
+            largura_texto,
+            45,
+            stroke=1,
+            fill=0
+        )
+        
+        c.setFont("Helvetica-Bold", 10)
+        c.drawString(margem_esq + 10, y - 18, f"Valor mensal da proposta: {valor_nf}")
+        c.drawString(margem_esq + 10, y - 35, f"Margem aplicada: {margem}")
+        
+        y -= 60
     )
 
     y = _draw_paragraph(
