@@ -2,17 +2,23 @@ import streamlit as st
 import pandas as pd
 from io import BytesIO
 
+# =========================
+# IMPORTS INTERNOS
+# =========================
 from auth.auth import login
 from ui.inputs import cargos
 from core.clt import calcular_clt
 from core.precificacao import precificar
 from core.simples import fator_r, anexo, aliquota, detalhar_das
 from core.utils import brl
-from core.relatorios import gerar_pdf_comercial, gerar_pdf_tecnico
+from core.relatorios import (
+    gerar_proposta_comercial_pdf,
+    gerar_pdf_tecnico
+)
 
-# ======================================================
+# =========================
 # LOGIN
-# ======================================================
+# =========================
 if "logged" not in st.session_state:
     st.session_state["logged"] = False
 
@@ -20,15 +26,36 @@ if not st.session_state["logged"]:
     login()
     st.stop()
 
-# ======================================================
-# INTERFACE – INPUTS
-# ======================================================
+# =========================
+# TÍTULO
+# =========================
 st.title("Sistema de Precificação CLT + Simples Nacional")
+
+# =========================
+# DADOS DA PROPOSTA
+# =========================
+st.subheader("📄 Dados da Proposta")
+
+cliente = st.text_input("Cliente")
+titulo_proposta = st.text_input(
+    "Título da proposta",
+    "Proposta de prestação de serviços"
+)
+descricao_proposta = st.text_area(
+    "Descrição da proposta / Escopo",
+    height=150
+)
+validade = st.text_input("Validade da proposta", "30 dias")
+
+# =========================
+# PARÂMETROS FINANCEIROS
+# =========================
+st.subheader("⚙️ Parâmetros Financeiros")
 
 vale = st.number_input(
     "Vale Alimentação por colaborador (R$)",
-    value=600.0,
-    min_value=0.0
+    min_value=0.0,
+    value=600.0
 )
 
 margem = st.slider(
@@ -38,22 +65,15 @@ margem = st.slider(
     value=20
 ) / 100
 
+# =========================
+# CARGOS
+# =========================
+st.subheader("👥 Cargos")
 lista_cargos = cargos()
 
-st.subheader("📄 Dados da Proposta")
-
-cliente = st.text_input("Cliente")
-titulo_proposta = st.text_input("Título da proposta", "Proposta de prestação de serviços")
-descricao_proposta = st.text_area(
-    "Descrição da proposta (escopo resumido)",
-    height=150
-)
-validade = st.text_input("Validade da proposta", "30 dias")
-
-
-# ======================================================
+# =========================
 # CÁLCULOS
-# ======================================================
+# =========================
 tabela_cargos = []
 total_clt_detalhado = {}
 
@@ -66,7 +86,7 @@ for nome, salario, qtd in lista_cargos:
 
     detalhes_clt, custo_unit = calcular_clt(salario, vale)
 
-    # acumula CLT detalhado
+    # acumular CLT detalhado
     for encargo, valor in detalhes_clt.items():
         total_clt_detalhado[encargo] = (
             total_clt_detalhado.get(encargo, 0.0) + valor * qtd
@@ -85,14 +105,13 @@ for nome, salario, qtd in lista_cargos:
         "Custo Total": custo_unit * qtd
     })
 
-# Se não houver cargos válidos, não prossegue
 if not tabela_cargos:
     st.warning("Informe ao menos um cargo válido para continuar.")
     st.stop()
 
-# ======================================================
+# =========================
 # PRECIFICAÇÃO
-# ======================================================
+# =========================
 preco_nf, lucro = precificar(custo_total, margem)
 
 fr = fator_r(folha_anual, preco_nf * 12)
@@ -102,18 +121,17 @@ aliq = aliquota(preco_nf * 12, an)
 das = preco_nf * aliq
 das_detalhado = detalhar_das(das, an)
 
-# ======================================================
-# TABELA DETALHADA POR CARGO
-# ======================================================
+# =========================
+# TABELA DETALHADA
+# =========================
 st.subheader("📊 Custos detalhados por cargo")
-
 df = pd.DataFrame(tabela_cargos)
 st.dataframe(df)
 
-# ======================================================
+# =========================
 # EXPORTAÇÕES
-# ======================================================
-st.subheader("📤 Exportar custos detalhados")
+# =========================
+st.subheader("📤 Exportar custos")
 
 # CSV
 st.download_button(
@@ -137,35 +155,31 @@ st.download_button(
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
 
-# ======================================================
+# =========================
 # RESULTADO CONSOLIDADO
-# ======================================================
+# =========================
 st.subheader("📈 Resultado Consolidado")
 
 st.write("💰 **Nota Fiscal Mensal:**", brl(preco_nf))
 st.write("📉 **Custo Total Mensal:**", brl(custo_total))
 st.write("📈 **Lucro Líquido Mensal:**", brl(lucro))
-
 st.write("📊 **Fator R:**", f"{fr:.2%}")
 st.write("📑 **Anexo Simples Nacional:**", an)
 st.write("🧾 **Alíquota Efetiva:**", f"{aliq:.2%}")
-
 st.write("🧾 **DAS Total Mensal:**", brl(das))
 
-# ======================================================
+# =========================
 # DAS DETALHADO
-# ======================================================
+# =========================
 st.subheader("🧾 DAS – Detalhamento por tributo")
 
 for tributo, valor in das_detalhado.items():
     st.write(f"{tributo}:", brl(valor))
 
-# ======================================================
-# PROPOSTAS (PDF)
-# ======================================================
+# =========================
+# PROPOSTAS EM PDF
+# =========================
 st.subheader("📄 Propostas em PDF")
-
-from core.relatorios import gerar_proposta_comercial_pdf
 
 if st.button("📄 Gerar Proposta COMERCIAL (PDF)"):
     gerar_proposta_comercial_pdf(
@@ -176,7 +190,7 @@ if st.button("📄 Gerar Proposta COMERCIAL (PDF)"):
         descricao=descricao_proposta,
         validade=validade,
         valor_nf=brl(preco_nf),
-        margem=f"{margem*100:.2f}%",
+        margem=f"{margem * 100:.2f}%",
         cargos=tabela_cargos
     )
 
@@ -187,7 +201,6 @@ if st.button("📄 Gerar Proposta COMERCIAL (PDF)"):
             "proposta_comercial.pdf",
             "application/pdf"
         )
-
 
 if st.button("📄 Gerar Proposta TÉCNICA (PDF)"):
     gerar_pdf_tecnico(
