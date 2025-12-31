@@ -169,17 +169,7 @@ def gerar_pdf_tecnico(
     lucro,
     das_detalhado
 ):
-    logo = carregar_logo("assets/logo_jtalent.jpg")
-
-    if logo:
-        c.drawImage(
-            logo,
-            margem_esq,
-            altura - 2.8 * cm,
-            width=4 * cm,
-            preserveAspectRatio=True,
-            mask="auto"
-        )
+   
 
     c = canvas.Canvas(caminho_pdf, pagesize=A4)
     largura, altura = A4
