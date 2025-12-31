@@ -1,29 +1,25 @@
 import streamlit as st
 import pandas as pd
-import re
 from datetime import date
 
 # ===============================
-# IMPORTS DO SEU CORE (INALTERADOS)
+# IMPORTS DO CORE (REAIS)
 # ===============================
-from core.relatorios import (
-    gerar_proposta_comercial_pdf,
-    gerar_pdf_tecnico
-)
+from auth.auth import login
+
+from core.clt import calcular_clt
+from core.simples import calcular_das_simples
+from core.precificacao import calcular_precificacao
 
 from core.ia_textos import (
     gerar_resumo_executivo,
     gerar_texto_comercial
 )
 
-from core.clt import calcular_encargos_clt
-from core.simples import calcular_das_simples
-from core.precificacao import calcular_precificacao
-
-# ⚠️ LOGIN EXISTENTE — NÃO ALTERADO
-# (mantém exatamente como você já usa hoje)
-from auth.auth import login
-
+from core.relatorios import (
+    gerar_proposta_comercial_pdf,
+    gerar_pdf_tecnico
+)
 
 # ===============================
 # CONFIGURAÇÃO DA PÁGINA
@@ -42,18 +38,6 @@ if not login():
 st.title("📊 Simulador de Precificação CLT")
 
 # ===============================
-# FUNÇÃO AUXILIAR (APENAS PREVIEW)
-# ===============================
-def preparar_preview_markdown(texto: str) -> str:
-    """
-    O Streamlit já interpreta Markdown.
-    Esta função existe apenas para deixar explícito
-    que o texto é exibido como preview formatado.
-    """
-    return texto if texto else ""
-
-
-# ===============================
 # IDENTIFICAÇÃO DA PROPOSTA
 # ===============================
 st.header("1️⃣ Identificação da Proposta")
@@ -65,7 +49,6 @@ titulo_proposta = col2.text_input(
     "Proposta de Prestação de Serviços"
 )
 validade = col3.text_input("Validade", "30 dias")
-
 
 # ===============================
 # ESTRUTURA DE CARGOS
@@ -96,7 +79,6 @@ if st.session_state.cargos:
 else:
     st.info("Nenhum cargo adicionado.")
 
-
 # ===============================
 # PARÂMETROS FINANCEIROS
 # ===============================
@@ -113,7 +95,6 @@ margem = col2.number_input(
     value=20.0,
     step=1.0
 )
-
 
 # ===============================
 # IA — CONTEÚDO DA PROPOSTA
@@ -133,7 +114,6 @@ if col1.button("Gerar Resumo Executivo"):
 if col2.button("Gerar Texto Comercial"):
     st.session_state.texto_comercial = gerar_texto_comercial(contexto)
 
-
 # ===============================
 # RESUMO EXECUTIVO
 # ===============================
@@ -144,8 +124,7 @@ resumo_exec = st.text_area(
 )
 
 st.markdown("**Pré-visualização formatada:**")
-st.markdown(preparar_preview_markdown(resumo_exec))
-
+st.markdown(resumo_exec)
 
 # ===============================
 # TEXTO COMERCIAL
@@ -157,8 +136,7 @@ texto_comercial = st.text_area(
 )
 
 st.markdown("**Pré-visualização formatada:**")
-st.markdown(preparar_preview_markdown(texto_comercial))
-
+st.markdown(texto_comercial)
 
 # ===============================
 # CÁLCULOS
@@ -170,15 +148,43 @@ if st.button("Calcular Precificação"):
         st.error("Adicione ao menos um cargo.")
         st.stop()
 
-    resultado_clt = calcular_encargos_clt(
-        st.session_state.cargos,
-        vale_refeicao
-    )
+    # ===============================
+    # CÁLCULO CLT (USANDO core/clt.py REAL)
+    # ===============================
+    detalhes_clt_consolidado = {}
+    folha_total = 0
 
-    resultado_das = calcular_das_simples(
-        resultado_clt["folha_total"]
-    )
+    for cargo in st.session_state.cargos:
+        salario = cargo["Salário"]
+        quantidade = cargo["Quantidade"]
 
+        detalhes_unit, custo_unit = calcular_clt(
+            salario,
+            vale_refeicao
+        )
+
+        custo_total_cargo = custo_unit * quantidade
+        folha_total += custo_total_cargo
+
+        for nome, valor in detalhes_unit.items():
+            detalhes_clt_consolidado[nome] = (
+                detalhes_clt_consolidado.get(nome, 0)
+                + (valor * quantidade)
+            )
+
+    resultado_clt = {
+        "detalhado": detalhes_clt_consolidado,
+        "folha_total": folha_total
+    }
+
+    # ===============================
+    # SIMPLES NACIONAL / DAS
+    # ===============================
+    resultado_das = calcular_das_simples(folha_total)
+
+    # ===============================
+    # PRECIFICAÇÃO FINAL
+    # ===============================
     resultado_precificacao = calcular_precificacao(
         resultado_clt,
         resultado_das,
@@ -190,7 +196,6 @@ if st.button("Calcular Precificação"):
         "das": resultado_das,
         "precificacao": resultado_precificacao
     }
-
 
 # ===============================
 # OUTPUT E RELATÓRIOS
