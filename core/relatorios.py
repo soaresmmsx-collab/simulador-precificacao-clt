@@ -180,8 +180,15 @@ def gerar_proposta_comercial_pdf(
         c, f"**{titulo_proposta}**", y, pagina,
         "PROPOSTA COMERCIAL", cliente
     )
+    
+    # >>> ESPAÇO ENTRE TÍTULO DA PROPOSTA E RESUMO EXECUTIVO <<<
+    y -= 24  # ajuste fino (pode ser 20–30)
+    
+    y, pagina = _draw_texto(
+        c, resumo, y, pagina,
+        "PROPOSTA COMERCIAL", cliente
+    )
 
-    y, pagina = _draw_texto(c, resumo, y, pagina, "PROPOSTA COMERCIAL", cliente)
 
     c.setFont(FONT_TITULO, 18)
     c.drawString(MARGEM_ESQ, y, valor_nf)
