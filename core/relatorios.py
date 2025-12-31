@@ -77,8 +77,17 @@ def _cabecalho(c, titulo, subtitulo):
     if linha:
         c.drawRightString(A4[0] - MARGEM_DIR, y, linha.strip())
 
-    c.line(MARGEM_ESQ, y - 10, largura - MARGEM_DIR, y - 10)
-    return y - 30
+    # linha separadora (mais baixa)
+    c.line(
+        MARGEM_ESQ,
+        y - 18,
+        largura - MARGEM_DIR,
+        y - 18
+    )
+    
+    # retorno com mais respiro para o corpo do texto
+    return y - 50
+
 
 # ================= TEXTO =================
 
