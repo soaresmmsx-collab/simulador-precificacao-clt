@@ -15,12 +15,18 @@ MARGEM_DIR = 2.5 * cm
 MARGEM_INF = 4.5 * cm
 LARGURA_TEXTO = A4[0] - (MARGEM_ESQ + MARGEM_DIR)
 
-LEADING_TEXTO = 18      # ~1,5
+LEADING_TEXTO = 18
 LEADING_TITULO = 22
 
 # ======================================================
 # UTILIDADES
 # ======================================================
+
+def _brl(valor):
+    try:
+        return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    except Exception:
+        return str(valor)
 
 def _footer(c, pagina):
     c.setFont("Helvetica-Oblique", 8)
@@ -45,8 +51,12 @@ def _cabecalho(c, titulo, subtitulo):
     c.setFont("Helvetica", 11)
     c.drawRightString(largura - MARGEM_DIR, altura - 2.9 * cm, subtitulo)
 
-    c.line(MARGEM_ESQ + 4.5 * cm, altura - 3.7 * cm,
-           largura - MARGEM_DIR, altura - 3.7 * cm)
+    c.line(
+        MARGEM_ESQ + 4.5 * cm,
+        altura - 3.7 * cm,
+        largura - MARGEM_DIR,
+        altura - 3.7 * cm
+    )
 
     return altura - 5.5 * cm
 
@@ -58,7 +68,7 @@ def _nova_pagina(c, pagina, titulo, subtitulo):
     return y, pagina
 
 # ======================================================
-# TEXTO PAGINADO (AJUSTADO)
+# TEXTO PAGINADO (ROBUSTO)
 # ======================================================
 
 def _draw_texto_paginado(
@@ -79,7 +89,7 @@ def _draw_texto_paginado(
                 linhas.append(linha.rstrip())
                 linha = w + " "
         linhas.append(linha.rstrip())
-        linhas.append(None)  # separador de parágrafo
+        linhas.append(None)
 
     for linha in linhas:
         if linha is None:
@@ -107,7 +117,7 @@ def gerar_proposta_comercial_pdf(
     c = canvas.Canvas(caminho, pagesize=A4)
     pagina = 1
 
-    # CAPA EXECUTIVA
+    # CAPA
     y = _cabecalho(c, "PROPOSTA EXECUTIVA", f"{cliente} | Validade: {validade}")
 
     y, pagina = _draw_texto_paginado(
@@ -123,22 +133,18 @@ def gerar_proposta_comercial_pdf(
     )
 
     y -= 20
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(MARGEM_ESQ, y, "Valor mensal da proposta")
-    y -= 18
     c.setFont("Helvetica-Bold", 18)
     c.drawString(MARGEM_ESQ, y, valor_nf)
 
     _footer(c, pagina)
 
-    # PROPOSTA COMERCIAL
+    # COMERCIAL
     y, pagina = _nova_pagina(
         c, pagina,
         "PROPOSTA COMERCIAL",
         f"{cliente} | {date.today().strftime('%d/%m/%Y')}"
     )
 
-    # Título do bloco
     c.setFont("Helvetica-Bold", 13)
     c.drawString(MARGEM_ESQ, y, "Contexto Institucional")
     y -= LEADING_TITULO / 2
@@ -159,7 +165,6 @@ def gerar_proposta_comercial_pdf(
         f"{cliente} | {date.today().strftime('%d/%m/%Y')}"
     )
 
-    # ASSINATURA FIXA
     assinatura = (
         "Atenciosamente,\n\n"
         "Jhonny Souza\n"
@@ -172,6 +177,72 @@ def gerar_proposta_comercial_pdf(
         c, assinatura, y, pagina,
         "PROPOSTA COMERCIAL",
         f"{cliente} | {date.today().strftime('%d/%m/%Y')}"
+    )
+
+    _footer(c, pagina)
+    c.save()
+
+# ======================================================
+# PDF TÉCNICO (RESTURADO)
+# ======================================================
+
+def gerar_pdf_tecnico(
+    caminho_pdf,
+    cargos,
+    clt_detalhado,
+    das_total,
+    lucro,
+    das_detalhado
+):
+    c = canvas.Canvas(caminho_pdf, pagesize=A4)
+    pagina = 1
+
+    y = _cabecalho(
+        c,
+        "PROPOSTA TÉCNICA",
+        "Memória de Cálculo – Custos, Encargos e Tributos"
+    )
+
+    c.setFont("Helvetica-Bold", 13)
+    c.drawString(MARGEM_ESQ, y, "Custos por Cargo")
+    y -= LEADING_TITULO / 2
+
+    for cargo in cargos:
+        linha = (
+            f"{cargo['Cargo']} | "
+            f"Qtd: {cargo['Quantidade']} | "
+            f"Salário Base: {_brl(cargo['Salário Base'])} | "
+            f"Custo Unitário: {_brl(cargo['Custo Unitário'])}"
+        )
+        y, pagina = _draw_texto_paginado(
+            c, linha, y, pagina,
+            "PROPOSTA TÉCNICA",
+            "Memória de Cálculo – Custos, Encargos e Tributos",
+            size=10
+        )
+
+    c.setFont("Helvetica-Bold", 13)
+    c.drawString(MARGEM_ESQ, y, "Encargos CLT Consolidados")
+    y -= LEADING_TITULO / 2
+
+    for nome, valor in clt_detalhado.items():
+        y, pagina = _draw_texto_paginado(
+            c, f"{nome}: {_brl(valor)}",
+            y, pagina,
+            "PROPOSTA TÉCNICA",
+            "Memória de Cálculo – Custos, Encargos e Tributos",
+            size=10
+        )
+
+    c.setFont("Helvetica-Bold", 13)
+    c.drawString(MARGEM_ESQ, y, "Resultado Final")
+    y -= LEADING_TITULO / 2
+
+    y, pagina = _draw_texto_paginado(
+        c, f"Lucro Mensal: {_brl(lucro)}",
+        y, pagina,
+        "PROPOSTA TÉCNICA",
+        "Memória de Cálculo – Custos, Encargos e Tributos"
     )
 
     _footer(c, pagina)
