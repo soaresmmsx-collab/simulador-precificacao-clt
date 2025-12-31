@@ -2,7 +2,7 @@ import streamlit as st
 import hashlib
 
 USERS = {
-    "max": "681fae29b727e172cd8605c3444ec059c2340c9ae5941a9e9ecc46c0081db7c8"
+    "JTalent": "681fae29b727e172cd8605c3444ec059c2340c9ae5941a9e9ecc46c0081db7c8"
 }
 
 def _hash(p):
