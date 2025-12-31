@@ -151,7 +151,6 @@ st.subheader("📄 Propostas em PDF")
 if st.button("📄 Gerar Proposta COMERCIAL (PDF)"):
     gerar_proposta_comercial_pdf(
         "proposta_comercial.pdf",
-        "assets/logo_jtalent.jpg",
         cliente,
         titulo_proposta,
         descricao_proposta,
@@ -160,6 +159,7 @@ if st.button("📄 Gerar Proposta COMERCIAL (PDF)"):
         f"{margem*100:.2f}%",
         tabela_cargos
     )
+
 
     with open("proposta_comercial.pdf", "rb") as f:
         st.download_button(
