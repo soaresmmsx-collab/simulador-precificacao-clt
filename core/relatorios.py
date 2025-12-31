@@ -112,12 +112,16 @@ def _desenhar_cabecalho_padrao(c, titulo_principal, subtitulo):
 
     # Linha divisória
     c.setLineWidth(0.6)
+
+    inicio_linha = margem_esq + 4.5 * cm  # largura da logo + respiro
+    
     c.line(
-        margem_esq,
+        inicio_linha,
         altura - 3.7 * cm,
         largura - margem_dir,
         altura - 3.7 * cm
     )
+
 
     # Retorna Y inicial do conteúdo
     return altura - 5.5 * cm
