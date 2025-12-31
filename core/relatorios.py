@@ -12,6 +12,7 @@ MARGEM_ESQ = 2.5 * cm
 MARGEM_DIR = 2.5 * cm
 MARGEM_INF = 4.0 * cm
 LARGURA_TEXTO = A4[0] - (MARGEM_ESQ + MARGEM_DIR)
+Y_INICIO_CORPO = A4[1] - 8.5 * cm
 
 FONT_TEXTO = "Helvetica"
 FONT_TITULO = "Helvetica-Bold"
@@ -171,15 +172,17 @@ def gerar_proposta_comercial_pdf(
     c = canvas.Canvas(caminho, pagesize=A4)
     pagina = 1
 
-    y = _cabecalho(c, "PROPOSTA COMERCIAL", f"{cliente} | Validade: {validade}")
+    _cabecalho(c, "PROPOSTA COMERCIAL", f"{cliente} | Validade: {validade}")
 
-    # >>> RESPIRO ENTRE CABEÇALHO E CONTEÚDO <<<
-    y -= 20  # ajuste fino do espaçamento vertical
-
+    # >>> INÍCIO FIXO DO CORPO <<<
+    y = Y_INICIO_CORPO
+    pagina = 1
+    
     y, pagina = _draw_texto(
         c, f"**{titulo_proposta}**", y, pagina,
         "PROPOSTA COMERCIAL", cliente
     )
+
     
     # >>> ESPAÇO ENTRE TÍTULO DA PROPOSTA E RESUMO EXECUTIVO <<<
     y -= 24  # ajuste fino (pode ser 20–30)
