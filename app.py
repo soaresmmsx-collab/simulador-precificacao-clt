@@ -72,10 +72,19 @@ st.download_button(
     "text/csv"
 )
 
+from io import BytesIO
+
+buffer = BytesIO()
+with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+    df.to_excel(writer, index=False, sheet_name="Custos")
+
+buffer.seek(0)
+
 st.download_button(
-    "⬇️ Excel",
-    df.to_excel(index=False, engine="openpyxl"),
-    "custos_por_cargo.xlsx"
+    "⬇️ Exportar Excel",
+    buffer,
+    "custos_por_cargo.xlsx",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
 
 # --- RESULTADO CONSOLIDADO ---
