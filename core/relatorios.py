@@ -5,10 +5,11 @@ from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import cm
 from reportlab.pdfbase.pdfmetrics import stringWidth
+from reportlab.lib.utils import ImageReader
 
 
 # ======================================================
-# FUNÇÕES AUXILIARES DE LAYOUT
+# FUNÇÕES AUXILIARES
 # ======================================================
 
 def _draw_paragraph(
@@ -22,7 +23,7 @@ def _draw_paragraph(
     leading=14
 ):
     """
-    Escreve texto com quebra automática de linha respeitando margem direita.
+    Desenha texto com quebra automática de linha respeitando margem direita.
     Retorna a nova posição Y.
     """
     c.setFont(font, size)
@@ -56,29 +57,37 @@ def _footer(c, pagina):
     )
 
 
-def _desenhar_logo(c, x, y, largura_cm=4):
+def _desenhar_logo(c):
     """
-    Desenha a logo usando caminho absoluto baseado no arquivo relatorios.py
-    (compatível com Streamlit Cloud)
+    Desenha a logo SEMPRE dentro da página (compatível com Streamlit Cloud).
     """
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    caminho_logo = os.path.join(base_dir, "..", "assets", "logo.png")
-    caminho_logo = os.path.normpath(caminho_logo)
+    caminho_logo = os.path.normpath(
+        os.path.join(base_dir, "..", "assets", "logo.png")
+    )
 
     if not os.path.exists(caminho_logo):
         raise FileNotFoundError(
             f"Logo não encontrada em: {caminho_logo}"
         )
 
+    logo = ImageReader(caminho_logo)
+
+    # POSIÇÃO SEGURA (sempre visível)
+    x = 2.5 * cm
+    y = A4[1] - 4 * cm
+    largura = 4 * cm
+    altura = 4 * cm
+
     c.drawImage(
-        caminho_logo,
+        logo,
         x,
         y,
-        width=largura_cm * cm,
+        width=largura,
+        height=altura,
         preserveAspectRatio=True,
         mask="auto"
     )
-
 
 
 # ======================================================
@@ -106,11 +115,7 @@ def gerar_proposta_comercial_pdf(
     y = altura - 3 * cm
 
     # LOGO
-    _desenhar_logo(
-        c,
-        margem_esq,
-        altura - 2.8 * cm
-    )
+    _desenhar_logo(c)
 
     # CABEÇALHO
     c.setFont("Helvetica-Bold", 16)
@@ -235,11 +240,7 @@ def gerar_pdf_tecnico(
     y = altura - 3 * cm
 
     # LOGO
-    _desenhar_logo(
-        c,
-        margem_esq,
-        altura - 2.8 * cm
-    )
+    _desenhar_logo(c)
 
     # TÍTULO
     y = _draw_paragraph(
