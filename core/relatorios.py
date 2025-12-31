@@ -12,13 +12,6 @@ from reportlab.lib.utils import ImageReader
 # FUNÇÕES AUXILIARES
 # ======================================================
 
-def _verificar_pagina(c, y, pagina):
-    if y < 4 * cm:
-        _footer(c, pagina)
-        c.showPage()
-        return A4[1] - 3 * cm, pagina + 1
-    return y, pagina
-
 def _draw_paragraph(c, texto, x, y, largura_max, font="Helvetica", size=10, leading=14):
     c.setFont(font, size)
     textobject = c.beginText(x, y)
@@ -44,7 +37,19 @@ def _draw_paragraph(c, texto, x, y, largura_max, font="Helvetica", size=10, lead
 
 def _footer(c, pagina):
     c.setFont("Helvetica-Oblique", 8)
-    c.drawRightString(A4[0] - 2 * cm, 1.5 * cm, f"Página {pagina}")
+    c.drawRightString(
+        A4[0] - 2 * cm,
+        1.5 * cm,
+        f"Página {pagina}"
+    )
+
+
+def _verificar_pagina(c, y, pagina):
+    if y < 4 * cm:
+        _footer(c, pagina)
+        c.showPage()
+        return A4[1] - 3 * cm, pagina + 1
+    return y, pagina
 
 
 def _desenhar_logo(c):
@@ -52,6 +57,9 @@ def _desenhar_logo(c):
     caminho_logo = os.path.normpath(
         os.path.join(base_dir, "..", "assets", "logo.png")
     )
+
+    if not os.path.exists(caminho_logo):
+        raise FileNotFoundError(f"Logo não encontrada em: {caminho_logo}")
 
     logo = ImageReader(caminho_logo)
 
@@ -91,8 +99,10 @@ def gerar_proposta_comercial_pdf(
     pagina = 1
     y = altura - 3 * cm
 
+    # LOGO
     _desenhar_logo(c)
 
+    # CABEÇALHO
     c.setFont("Helvetica-Bold", 16)
     c.drawRightString(largura - margem_dir, altura - 2 * cm, "PROPOSTA COMERCIAL")
 
@@ -106,20 +116,23 @@ def gerar_proposta_comercial_pdf(
 
     y -= 2 * cm
 
+    # TÍTULO
     y = _draw_paragraph(
         c, titulo, margem_esq, y, largura_texto,
         font="Helvetica-Bold", size=12, leading=16
     ) - 20
 
+    # TEXTO INSTITUCIONAL
     y = _draw_paragraph(c, texto_institucional, margem_esq, y, largura_texto)
     y -= 15
     y, pagina = _verificar_pagina(c, y, pagina)
-    
+
+    # TEXTO COMERCIAL
     y = _draw_paragraph(c, texto_comercial, margem_esq, y, largura_texto)
+    y -= 20
     y, pagina = _verificar_pagina(c, y, pagina)
 
-
-    y -= 20
+    # ESCOPO
     y = _draw_paragraph(
         c, "Escopo de Alocação:",
         margem_esq, y, largura_texto,
@@ -134,40 +147,35 @@ def gerar_proposta_comercial_pdf(
             y,
             largura_texto
         )
-
-    y -= 20
-    y = _draw_paragraph(
-        c, "Condições Comerciais:",
-        y -= 25
         y, pagina = _verificar_pagina(c, y, pagina)
-        
-        c.setFont("Helvetica-Bold", 11)
-        c.drawString(margem_esq, y, "Resumo Comercial")
-        y -= 15
-        
-        # Caixa visual
-        c.rect(
-            margem_esq,
-            y - 45,
-            largura_texto,
-            45,
-            stroke=1,
-            fill=0
-        )
-        
-        c.setFont("Helvetica-Bold", 10)
-        c.drawString(margem_esq + 10, y - 18, f"Valor mensal da proposta: {valor_nf}")
-        c.drawString(margem_esq + 10, y - 35, f"Margem aplicada: {margem}")
-        
-        y -= 60
+
+    # RESUMO COMERCIAL (VALORES)
+    y -= 20
+    y, pagina = _verificar_pagina(c, y, pagina)
+
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(margem_esq, y, "Resumo Comercial")
+    y -= 10
+
+    c.rect(
+        margem_esq,
+        y - 50,
+        largura_texto,
+        50,
+        stroke=1,
+        fill=0
     )
 
-    y = _draw_paragraph(
-        c,
-        f"Valor mensal da proposta: {valor_nf}\nMargem aplicada: {margem}",
-        margem_esq,
-        y,
-        largura_texto
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(
+        margem_esq + 10,
+        y - 20,
+        f"Valor mensal da proposta: {valor_nf}"
+    )
+    c.drawString(
+        margem_esq + 10,
+        y - 38,
+        f"Margem aplicada: {margem}"
     )
 
     _footer(c, pagina)
@@ -205,6 +213,7 @@ def gerar_pdf_tecnico(
         font="Helvetica-Bold", size=14, leading=18
     )
 
+    # CARGOS
     y -= 20
     y = _draw_paragraph(
         c, "1. Custos por Cargo",
@@ -220,7 +229,9 @@ def gerar_pdf_tecnico(
             f"Custo Unitário: {cargo['Custo Unitário']}",
             margem_esq, y, largura_texto
         )
+        y, pagina = _verificar_pagina(c, y, pagina)
 
+    # CLT
     y -= 20
     y = _draw_paragraph(
         c, "2. Encargos CLT Consolidados",
@@ -230,7 +241,9 @@ def gerar_pdf_tecnico(
 
     for nome, valor in clt_detalhado.items():
         y = _draw_paragraph(c, f"{nome}: {valor}", margem_esq, y, largura_texto)
+        y, pagina = _verificar_pagina(c, y, pagina)
 
+    # DAS
     y -= 20
     y = _draw_paragraph(
         c, "3. Simples Nacional – DAS",
@@ -239,7 +252,9 @@ def gerar_pdf_tecnico(
     )
 
     y = _draw_paragraph(c, f"DAS Total Mensal: {das_total}", margem_esq, y, largura_texto)
+    y, pagina = _verificar_pagina(c, y, pagina)
 
+    # DAS DETALHADO
     y -= 10
     y = _draw_paragraph(
         c, "4. DAS – Detalhamento por Tributo",
@@ -249,7 +264,9 @@ def gerar_pdf_tecnico(
 
     for tributo, valor in das_detalhado.items():
         y = _draw_paragraph(c, f"{tributo}: {valor}", margem_esq, y, largura_texto)
+        y, pagina = _verificar_pagina(c, y, pagina)
 
+    # RESULTADO
     y -= 20
     y = _draw_paragraph(
         c, "5. Resultado Final",
