@@ -169,28 +169,25 @@ def gerar_proposta_comercial_pdf(
 
     # >>> INÍCIO FIXO DO CORPO <<<
     y = Y_INICIO_CORPO
-    pagina = 1
+   
+    # >>> AJUSTE ÚNICO E DEFINITIVO <<<
+    y -= 25  # espaço entre logo/títulos e linha
+    
+    # linha separadora (agora alinhada ao corpo)
+    c.line(MARGEM_ESQ, y, A4[0] - MARGEM_DIR, y)
+    
+    # espaço entre linha e corpo
+    y -= 20
     
     y, pagina = _draw_texto(
         c, f"**{titulo_proposta}**", y, pagina,
         "PROPOSTA COMERCIAL", cliente
     )
 
-    
-    # >>> ESPAÇO ENTRE TÍTULO DA PROPOSTA E RESUMO EXECUTIVO <<<
-    y -= 24  # ajuste fino (pode ser 20–30)
-
-    # linha separadora (agora alinhada ao corpo)
-    c.line(MARGEM_ESQ, y, A4[0] - MARGEM_DIR, y)
-
-    # espaço entre linha e corpo
-    y -= 20
-
     y, pagina = _draw_texto(
         c, resumo, y, pagina,
         "PROPOSTA COMERCIAL", cliente
     )
-
 
     c.setFont(FONT_TITULO, 18)
     c.drawString(MARGEM_ESQ, y, valor_nf)
