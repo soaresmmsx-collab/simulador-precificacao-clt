@@ -76,7 +76,19 @@ with st.expander("Adicionar cargo"):
         })
 
 if st.session_state.cargos:
-    st.dataframe(pd.DataFrame(st.session_state.cargos), use_container_width=True)
+    st.subheader("Cargos adicionados")
+
+    for idx, cargo in enumerate(st.session_state.cargos):
+        col1, col2, col3, col4, col5 = st.columns([3, 2, 2, 2, 1])
+
+        col1.write(cargo["Cargo"])
+        col2.write(f"R$ {cargo['Salário']:,.2f}")
+        col3.write(cargo["Quantidade"])
+        col4.write(f"VR: R$ {vale_refeicao:,.2f}")
+
+        if col5.button("🗑️", key=f"remover_{idx}"):
+            st.session_state.cargos.pop(idx)
+            st.rerun()
 else:
     st.info("Nenhum cargo adicionado.")
 
